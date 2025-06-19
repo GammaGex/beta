@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEX Dashboard v13</title>
+    <title>GEX Dashboard v16</title>
+    <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.2.1/chartjs-plugin-annotation.min.js"></script>
@@ -92,7 +93,7 @@
             color: var(--text-secondary);
             text-transform: uppercase;
         }
-        .sidebar input[type="text"], .sidebar select {
+        .sidebar select {
             width: 100%;
             padding: 8px;
             border-radius: 4px;
@@ -203,13 +204,13 @@
 
                     <h3>Volume</h3>
                     <div class="info-item"><span class="label">Zero Gamma</span><span class="value" id="zero_gamma">-</span></div>
-                    <div class="info-item"><span class="label">Major Positive</span><span class="value positive" id="mpos_oi">-</span></div>
-                    <div class="info-item"><span class="label">Major Negative</span><span class="value negative" id="mneg_oi">-</span></div>
+                    <div class="info-item"><span class="label">Major Positive</span><span class="value positive" id="mpos_vol">-</span></div>
+                    <div class="info-item"><span class="label">Major Negative</span><span class="value negative" id="mneg_vol">-</span></div>
                     <div class="info-item"><span class="label">Net GEX</span><span class="value" id="net_gex_vol">-</span></div>
                     
                     <h3>Open Interest</h3>
-                    <div class="info-item"><span class="label">Major Positive</span><span class="value positive" id="oi_mpos">-</span></div>
-                    <div class="info-item"><span class="label">Major Negative</span><span class="value negative" id="oi_mneg">-</span></div>
+                    <div class="info-item"><span class="label">Major Positive</span><span class="value positive" id="mpos_oi">-</span></div>
+                    <div class="info-item"><span class="label">Major Negative</span><span class="value negative" id="mneg_oi">-</span></div>
                     <div class="info-item"><span class="label">Net GEX</span><span class="value" id="net_gex_oi">-</span></div>
 
                     <h3>Max Change GEX</h3>
@@ -222,25 +223,22 @@
     <script>
         const apiKey = "dGkuGvazaESI"; 
 
-        // --- Elementos da página ---
         const tickerSelect = document.getElementById('tickerSelect');
         const periodButtons = document.querySelector('.date-buttons');
         const statusEl = document.getElementById('status');
         const sidebarInfoEl = document.getElementById('sidebar-info');
         const chartsContainerEl = document.getElementById('charts-container');
         
-        // --- Variáveis de estado ---
         let currentPeriod = 'zero';
         let myGexChart = null;
         
-        // --- Funções Auxiliares ---
         function formatNumber(num, fractionDigits = 2) {
             if (typeof num !== 'number') return '-';
             return num.toLocaleString('pt-BR', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
         }
         function formatBillions(num) {
             if (typeof num !== 'number') return '-';
-            const value = (num / 1_000_000_000);
+            const value = (num / 1e9);
             return `${value.toFixed(4)}Bn`;
         }
         function setStatus(message, isLoading = false) {
@@ -268,8 +266,6 @@
             return response.json();
         }
 
-
-        // --- Função Principal de Lógica e API ---
         async function runUpdate() {
             const ticker = tickerSelect.value;
             if (!ticker) {
@@ -279,20 +275,13 @@
             setStatus(`Carregando dados para ${ticker.toUpperCase()}...`, true);
 
             const baseApiUrl = `https://api.gexbot.com/${ticker.toUpperCase()}/classic/${currentPeriod}`;
-            
-            const urlsToFetch = [
-                createProxiedUrl(`${baseApiUrl}/majors?key=${apiKey}`),
-                createProxiedUrl(`${baseApiUrl}/maxchange?key=${apiKey}`),
-                createProxiedUrl(`${baseApiUrl}?key=${apiKey}`)
-            ];
+            const fullChainUrl = createProxiedUrl(`${baseApiUrl}?key=${apiKey}`);
 
             try {
-                const [majorsData, maxChangeData, fullChainData] = await Promise.all(
-                    urlsToFetch.map(fetchAndParseProxied)
-                );
+                const fullData = await fetchAndParseProxied(fullChainUrl);
                 
-                updateSidebar(majorsData, maxChangeData);
-                drawGexProfileChart(fullChainData, majorsData); 
+                updateSidebar(fullData);
+                drawGexProfileChart(fullData); 
                 
                 setStatus(null);
 
@@ -302,70 +291,55 @@
             }
         }
         
-        // --- Funções de Atualização da UI ---
-        function updateSidebar(majors, maxChange) {
-            const date = new Date(majors.timestamp * 1000); 
+        function updateSidebar(data) {
+            const date = new Date(data.timestamp * 1000); 
             document.getElementById('timestamp_date').textContent = date.toLocaleDateString('pt-BR');
-            const timeString = date.toLocaleTimeString('pt-BR');
-            document.getElementById('timestamp_time').textContent = timeString;
+            document.getElementById('timestamp_time').textContent = date.toLocaleTimeString('pt-BR');
 
-            document.getElementById('spot_price').textContent = formatNumber(majors.spot, 2);
-            document.getElementById('zero_gamma').textContent = formatNumber(majors.zero_gamma, 2);
+            document.getElementById('spot_price').textContent = formatNumber(data.spot, 2);
+            document.getElementById('zero_gamma').textContent = formatNumber(data.zero_gamma, 2);
             
-            document.getElementById('mpos_oi').textContent = formatNumber(majors.mpos_oi, 2);
-            document.getElementById('mneg_oi').textContent = formatNumber(majors.mneg_oi, 2);
+            document.getElementById('mpos_vol').textContent = formatNumber(data.major_pos_vol, 2);
+            document.getElementById('mneg_vol').textContent = formatNumber(data.major_neg_vol, 2);
             const netGexVolEl = document.getElementById('net_gex_vol');
-            netGexVolEl.textContent = formatNumber(majors.net_gex_vol, 4);
-            if (typeof majors.net_gex_vol === 'number') {
-                netGexVolEl.className = `value ${majors.net_gex_vol > 0 ? 'positive' : 'negative'}`;
+            netGexVolEl.textContent = formatBillions(data.sum_gex_vol);
+            if (typeof data.sum_gex_vol === 'number') {
+                netGexVolEl.className = `value ${data.sum_gex_vol > 0 ? 'positive' : 'negative'}`;
             }
 
-            document.getElementById('oi_mpos').textContent = formatNumber(majors.oi_mpos, 2);
-            document.getElementById('oi_mneg').textContent = formatNumber(majors.oi_mneg, 2);
+            document.getElementById('mpos_oi').textContent = formatNumber(data.major_pos_oi, 2);
+            document.getElementById('mneg_oi').textContent = formatNumber(data.major_neg_oi, 2);
             const netGexOiEl = document.getElementById('net_gex_oi');
-            netGexOiEl.textContent = formatNumber(majors.net_gex_oi, 4);
-            if (typeof majors.net_gex_oi === 'number') {
-                 netGexOiEl.className = `value ${majors.net_gex_oi > 0 ? 'positive' : 'negative'}`;
+            netGexOiEl.textContent = formatBillions(data.sum_gex_oi);
+            if (typeof data.sum_gex_oi === 'number') {
+                 netGexOiEl.className = `value ${data.sum_gex_oi > 0 ? 'positive' : 'negative'}`;
             }
 
             const maxChangeListEl = document.getElementById("maxChangeList");
             maxChangeListEl.innerHTML = '';
-            const intervals = {'one':'1 min', 'five':'5 min', 'ten':'10 min', 'fifteen': '15 min', 'thirty': '30 min'};
-            for(const key in intervals) {
-                const data = maxChange[key];
-                if(data && data[1] !== 0) { // CORREÇÃO: Verifica se o dado existe e se não é zero
-                    const valueClass = data[1] > 0 ? 'positive' : 'negative';
-                    maxChangeListEl.innerHTML += `
-                        <div class="info-item">
-                            <span class="label">${intervals[key]}</span>
-                            <span class="value">${formatNumber(data[0])} <span class="${valueClass}">${formatBillions(data[1])}</span></span>
-                        </div>`;
-                } else {
-                     maxChangeListEl.innerHTML += `
-                        <div class="info-item">
-                            <span class="label">${intervals[key]}</span>
-                            <span class="value">N/A</span>
-                        </div>`;
-                }
+            const intervals = ['1m', '5m', '10m', '15m', '30m'];
+            if(data.max_priors && Array.isArray(data.max_priors)){
+                data.max_priors.slice(1).forEach((changeData, index) => { // slice(1) to ignore 1m
+                    if (changeData) {
+                        const valueClass = changeData[1] > 0 ? 'positive' : 'negative';
+                        maxChangeListEl.innerHTML += `
+                            <div class="info-item">
+                                <span class="label">${intervals[index + 1]}</span>
+                                <span class="value">${formatNumber(changeData[0])} <span class="${valueClass}">${formatBillions(changeData[1])}</span></span>
+                            </div>`;
+                    }
+                });
             }
         }
 
-        // --- Função do Gráfico ---
-        function drawGexProfileChart(fullChainData, annotationValues) {
+        function drawGexProfileChart(fullData) {
             if (myGexChart) myGexChart.destroy();
             
-            const chartData = fullChainData.strikes.map(s => ({ x: s[1], y: s[0] }));
-
-            const xValues = chartData.map(d => d.x);
-            const maxAbsValue = Math.max(...xValues.map(v => Math.abs(v)));
-            const padding = maxAbsValue * 0.1; 
-            const axisLimit = maxAbsValue + padding;
-
             const datasets = [];
 
             datasets.push({
-                label: 'GEX Atual',
-                data: chartData,
+                label: 'GEX Atual (Vol)',
+                data: fullData.strikes.map(s => ({ x: s[1], y: s[0] })),
                 backgroundColor: (c) => c.raw.x >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)',
                 borderColor: (c) => c.raw.x >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)',
                 borderWidth: 1, 
@@ -382,10 +356,8 @@
                     scales: {
                         x: { 
                             position: 'top', 
-                            ticks: { color: '#FFFFFF', callback: (v) => v.toFixed(0) }, 
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                            min: -axisLimit, 
-                            max: axisLimit   
+                            ticks: { color: '#FFFFFF' }, 
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' } 
                         },
                         y: { 
                             type: 'linear', 
@@ -417,10 +389,9 @@
                         },
                         annotation: {
                             annotations: {
-                                zero_gamma_line: { type: 'line', yMin: annotationValues.zero_gamma, yMax: annotationValues.zero_gamma, borderColor: '#f0b90b', borderWidth: 2, label: { content: `${formatNumber(annotationValues.zero_gamma)}`, enabled: true, position: 'end', backgroundColor: '#f0b90b', color: '#000', font: { weight: 'bold' } } },
-                                mpos_oi_line: { type: 'line', yMin: annotationValues.mpos_oi, yMax: annotationValues.mpos_oi, borderColor: '#28a745', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(annotationValues.mpos_oi)}`, enabled: true, position: 'start', backgroundColor: '#28a745', font: { weight: 'bold' } } },
-                                mneg_oi_line: { type: 'line', yMin: annotationValues.mneg_oi, yMax: annotationValues.mneg_oi, borderColor: '#dc3545', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(annotationValues.mneg_oi)}`, enabled: true, position: 'start', backgroundColor: '#dc3545', font: { weight: 'bold' } } },
-                                spot_line: { type: 'line', yMin: annotationValues.spot, yMax: annotationValues.spot, borderColor: '#FFFFFF', borderWidth: 1.5 }
+                                zero_gamma_line: { type: 'line', yMin: fullData.zero_gamma, yMax: fullData.zero_gamma, borderColor: '#f0b90b', borderWidth: 2, label: { content: `${formatNumber(fullData.zero_gamma)}`, enabled: true, position: 'end', backgroundColor: '#f0b90b', color: '#000', font: { weight: 'bold' } } },
+                                major_pos_vol_line: { type: 'line', yMin: fullData.major_pos_vol, yMax: fullData.major_pos_vol, borderColor: '#28a745', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_pos_vol)}`, enabled: true, position: 'start', backgroundColor: '#28a745', font: { weight: 'bold' } } },
+                                major_neg_vol_line: { type: 'line', yMin: fullData.major_neg_vol, yMax: fullData.major_neg_vol, borderColor: '#dc3545', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_neg_vol)}`, enabled: true, position: 'start', backgroundColor: '#dc3545', font: { weight: 'bold' } } },
                             }
                         },
                         zoom: {
@@ -443,7 +414,6 @@
             });
         }
 
-        // --- Event Listeners ---
         periodButtons.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
                 document.querySelector('.date-buttons button.active').classList.remove('active');
@@ -455,7 +425,6 @@
 
         tickerSelect.addEventListener('change', runUpdate);
         
-        // --- Carga Inicial ---
         window.addEventListener('load', runUpdate);
     </script>
 </body>
