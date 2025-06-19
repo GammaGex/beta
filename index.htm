@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEX Dashboard v18</title>
+    <title>GEX Dashboard v26</title>
     <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -47,7 +47,6 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            position: relative; /* Necessário para posicionar o timestamp */
         }
 
         .sidebar {
@@ -152,18 +151,6 @@
             right: 0;
             bottom: 0; 
         }
-
-        #last-update-display {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: var(--text-secondary);
-            font-size: 0.9em;
-            padding: 2px 8px;
-            border-radius: 4px;
-            background-color: rgba(0,0,0,0.3);
-        }
         
         @media (max-width: 900px) {
             body { height: auto; }
@@ -181,7 +168,6 @@
                 <div class="chart-container" id="chartContainer">
                     <canvas id="gexChart"></canvas>
                 </div>
-                 <div id="last-update-display"></div>
             </div>
         </main>
         <aside class="sidebar">
@@ -312,11 +298,8 @@
         }
         
         function updateSidebar(data) {
-            const apiDate = new Date(data.timestamp * 1000); 
-            document.getElementById('timestamp_date').textContent = apiDate.toLocaleDateString('pt-BR');
-            
-            const now = new Date();
-            document.getElementById('last-update-display').textContent = `Última Atualização: ${now.toLocaleTimeString('pt-BR')}`;
+            const date = new Date(data.timestamp * 1000); 
+            document.getElementById('timestamp_date').textContent = date.toLocaleDateString('pt-BR');
 
             document.getElementById('spot_price').textContent = formatNumber(data.spot, 2);
             document.getElementById('zero_gamma').textContent = formatNumber(data.zero_gamma, 2);
@@ -361,6 +344,12 @@
             const padding = maxAbsValue * 0.1;
             const axisLimit = maxAbsValue + padding;
             
+            const ticker = fullData.ticker;
+            let yStepSize = 25;
+            if (['QQQ', 'SPY'].includes(ticker)) {
+                yStepSize = 1;
+            }
+            
             const datasets = [{
                 label: 'GEX Atual (Vol)',
                 data: chartData,
@@ -372,17 +361,17 @@
             }];
 
             const annotationOptions = {
-                zero_gamma_line: { type: 'line', yMin: fullData.zero_gamma, yMax: fullData.zero_gamma, borderColor: '#f0b90b', borderWidth: 2, label: { content: `${formatNumber(fullData.zero_gamma)}`, enabled: true, position: 'end', backgroundColor: '#f0b90b', color: '#000', font: { weight: 'bold' } } },
-                major_pos_vol_line: { type: 'line', yMin: fullData.major_pos_vol, yMax: fullData.major_pos_vol, borderColor: '#28a745', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_pos_vol)}`, enabled: true, position: 'start', backgroundColor: '#28a745', font: { weight: 'bold' } } },
-                major_neg_vol_line: { type: 'line', yMin: fullData.major_neg_vol, yMax: fullData.major_neg_vol, borderColor: '#dc3545', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_neg_vol)}`, enabled: true, position: 'start', backgroundColor: '#dc3545', font: { weight: 'bold' } } },
+                zero_gamma_line: { type: 'line', yMin: fullData.zero_gamma, yMax: fullData.zero_gamma, borderColor: '#f0b90b', borderWidth: 2, label: { content: `${formatNumber(fullData.zero_gamma, 2)}`, enabled: true, position: 'end', backgroundColor: 'rgba(240, 185, 11, 0.8)', color: '#000', font: { weight: 'bold' } } },
+                major_pos_vol_line: { type: 'line', yMin: fullData.major_pos_vol, yMax: fullData.major_pos_vol, borderColor: '#28a745', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_pos_vol, 2)}`, enabled: true, position: 'start', backgroundColor: 'rgba(40, 167, 69, 0.8)', font: { weight: 'bold' } } },
+                major_neg_vol_line: { type: 'line', yMin: fullData.major_neg_vol, yMax: fullData.major_neg_vol, borderColor: '#dc3545', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_neg_vol, 2)}`, enabled: true, position: 'start', backgroundColor: 'rgba(220, 53, 69, 0.8)', font: { weight: 'bold' } } },
                 spot_line: { type: 'line', yMin: fullData.spot, yMax: fullData.spot, borderColor: '#FFFFFF', borderWidth: 1.5 }
             };
-
 
             if (myGexChart) {
                 myGexChart.data.datasets = datasets;
                 myGexChart.options.scales.x.min = -axisLimit;
                 myGexChart.options.scales.x.max = axisLimit;
+                myGexChart.options.scales.y.ticks.stepSize = yStepSize;
                 myGexChart.options.plugins.annotation.annotations = annotationOptions;
                 myGexChart.update('none'); 
             } else {
@@ -405,7 +394,7 @@
                             },
                             y: { 
                                 type: 'linear', 
-                                ticks: { color: '#FFFFFF', stepSize: 25 }, 
+                                ticks: { color: '#FFFFFF', stepSize: yStepSize }, 
                                 grid: { color: 'rgba(255, 255, 255, 0.1)' } 
                             }
                         },
@@ -436,17 +425,15 @@
                             },
                             zoom: {
                                 pan: {
-                                    enabled: true,
-                                    mode: 'xy',
+                                    enabled: false, // Desativa o arraste (pan)
                                 },
                                 zoom: {
                                     wheel: {
-                                        enabled: true,
+                                        enabled: false, // Desativa o zoom com a roda do rato
                                     },
                                     pinch: {
-                                        enabled: true
+                                        enabled: false // Desativa o zoom em ecrãs táteis
                                     },
-                                    mode: 'xy',
                                 }
                             }
                         }
