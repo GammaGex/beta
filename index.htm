@@ -319,7 +319,7 @@
             maxChangeListEl.innerHTML = '';
             const intervals = ['1m', '5m', '10m', '15m', '30m'];
             if(data.max_priors && Array.isArray(data.max_priors)){
-                data.max_priors.slice(1).forEach((changeData, index) => { // slice(1) to ignore 1m
+                data.max_priors.slice(1).forEach((changeData, index) => { 
                     if (changeData) {
                         const valueClass = changeData[1] > 0 ? 'positive' : 'negative';
                         maxChangeListEl.innerHTML += `
@@ -335,11 +335,19 @@
         function drawGexProfileChart(fullData) {
             if (myGexChart) myGexChart.destroy();
             
+            const chartData = fullData.strikes.map(s => ({ x: s[1], y: s[0] }));
+
+            // CORREÇÃO: Lógica para centralizar o gráfico
+            const xValues = chartData.map(d => d.x);
+            const maxAbsValue = Math.max(...xValues.map(v => Math.abs(v)));
+            const padding = maxAbsValue * 0.1;
+            const axisLimit = maxAbsValue + padding;
+
             const datasets = [];
 
             datasets.push({
                 label: 'GEX Atual (Vol)',
-                data: fullData.strikes.map(s => ({ x: s[1], y: s[0] })),
+                data: chartData,
                 backgroundColor: (c) => c.raw.x >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)',
                 borderColor: (c) => c.raw.x >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)',
                 borderWidth: 1, 
@@ -357,7 +365,9 @@
                         x: { 
                             position: 'top', 
                             ticks: { color: '#FFFFFF' }, 
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' } 
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            min: -axisLimit, // Define o mínimo do eixo
+                            max: axisLimit   // Define o máximo do eixo
                         },
                         y: { 
                             type: 'linear', 
@@ -392,6 +402,7 @@
                                 zero_gamma_line: { type: 'line', yMin: fullData.zero_gamma, yMax: fullData.zero_gamma, borderColor: '#f0b90b', borderWidth: 2, label: { content: `${formatNumber(fullData.zero_gamma)}`, enabled: true, position: 'end', backgroundColor: '#f0b90b', color: '#000', font: { weight: 'bold' } } },
                                 major_pos_vol_line: { type: 'line', yMin: fullData.major_pos_vol, yMax: fullData.major_pos_vol, borderColor: '#28a745', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_pos_vol)}`, enabled: true, position: 'start', backgroundColor: '#28a745', font: { weight: 'bold' } } },
                                 major_neg_vol_line: { type: 'line', yMin: fullData.major_neg_vol, yMax: fullData.major_neg_vol, borderColor: '#dc3545', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_neg_vol)}`, enabled: true, position: 'start', backgroundColor: '#dc3545', font: { weight: 'bold' } } },
+                                spot_line: { type: 'line', yMin: fullData.spot, yMax: fullData.spot, borderColor: '#FFFFFF', borderWidth: 1.5 }
                             }
                         },
                         zoom: {
