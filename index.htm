@@ -1,1121 +1,421 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Processador de Dados</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>GEX Dashboard v9</title>
+    <!-- Chart.js e dependências -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.2.1/chartjs-plugin-annotation.min.js"></script>
+
     <style>
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --text-primary: #e0e0e0;
+            --text-secondary: #aaa;
+            --border-color: #333;
+            --accent-blue: #0d8eff;
+            --positive-color: #28a745;
+            --negative-color: #dc3545;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 15px;
+            height: calc(100vh - 30px);
+            box-sizing: border-box;
         }
-        .bg-slate-800-contrast {
-            background-color: #1e293b;
+
+        .dashboard-layout {
+            display: flex;
+            gap: 15px;
+            align-items: stretch;
+            height: 100%;
         }
-        .text-slate-200-contrast {
-            color: #e2e8f0;
+
+        .main-content {
+            flex-grow: 1;
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
         }
-        .placeholder-slate-500-contrast::placeholder {
-            color: #64748b;
+
+        .sidebar {
+            flex: 0 0 300px;
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
         }
-        #fieldsCheckboxesContainer, #ratiosInputContainer, #txtConfigContainer {
-            max-height: 150px; 
-            overflow-y: auto;
-            border: 1px solid #334155; 
-            padding: 0.75rem; 
-            border-radius: 0.5rem; 
-            background-color: #334155; 
+
+        h3 {
+            text-align: left;
+            font-size: 1.1em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+            margin-top: 20px;
+            margin-bottom: 15px;
+            font-weight: 500;
         }
-        .checkbox-label {
-            display: block; 
-            margin-bottom: 0.5rem; 
-            color: #cbd5e1; 
-            cursor: pointer;
+
+        /* --- Estilos do Menu Lateral --- */
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
         }
-        .checkbox-label input[type="checkbox"] {
-            margin-right: 0.5rem;
-            accent-color: #0ea5e9; 
+        .sidebar-header h1 {
+            font-size: 1.4em;
+            margin: 0;
+            color: var(--text-primary);
+        }
+        .header-icons { display: flex; gap: 15px; }
+        .header-icons svg { fill: var(--text-secondary); width: 20px; height: 20px; }
+
+        .sidebar .control-group { margin-top: 20px; }
+        .sidebar label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        .sidebar input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background-color: var(--border-color);
+            color: var(--text-primary);
+            box-sizing: border-box;
+            font-size: 1em;
         }
         
-        .ratio-item-label, .txt-config-item {
+        .sidebar .date-buttons {
             display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .sidebar .date-buttons button {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: #2a2a2a;
+            color: var(--text-primary);
+            cursor: pointer;
+            text-align: left;
+            transition: background-color 0.3s, border-color 0.3s;
+            font-size: 1em;
+        }
+        .sidebar .date-buttons button.active, .sidebar .date-buttons button:hover {
+            background-color: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 0.95em;
+        }
+        .info-item .label { color: var(--text-secondary); }
+        .info-item .value { font-weight: bold; }
+        .positive { color: var(--positive-color); }
+        .negative { color: var(--negative-color); }
+        
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.75rem; 
-            color: #cbd5e1; 
         }
-        .ratio-item-label input[type="checkbox"], .txt-config-item .original-field-name {
-            margin-right: 0.75rem;
-            accent-color: #0ea5e9;
-            flex-shrink: 0;
-        }
-        .ratio-item-label .ratio-ticker-name, .txt-config-item .original-field-name {
-            width: 130px; 
-            margin-right: 0.5rem;
-            flex-shrink: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font-size: 0.875rem;
-        }
-         .txt-config-item .original-field-name {
-            font-weight: 500;
-         }
+        .playback-controls { display: flex; gap: 15px; align-items: center; }
+        .playback-controls svg { fill: var(--text-secondary); width: 22px; height: 22px; cursor: pointer; }
+        .playback-controls svg:hover { fill: var(--text-primary); }
 
-        .ratio-item-label input[type="number"], 
-        .txt-config-item input[type="text"], 
-        .txt-config-item .txt-num-input {
-            width: 150px; 
-            padding: 0.35rem 0.5rem;
-            border-radius: 0.25rem;
-            background-color: #475569; 
-            color: #e2e8f0; 
-            border: 1px solid #64748b; 
-            flex-shrink: 0;
-            font-size: 0.875rem;
-            margin-right: 0.5rem;
+        #status { text-align: center; margin-top: 20px; font-style: italic; color: #888; }
+        
+        #charts-container {
+            flex-grow: 1;
+            position: relative;
         }
-        .txt-config-item .txt-num-input {
-             width: 100px;
+        .chart-container { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
-        .ratio-item-label input[type="number"]:disabled {
-            background-color: #334155;
-            color: #64748b;
-            cursor: not-allowed;
+        
+        @media (max-width: 900px) {
+            body { height: auto; }
+            .dashboard-layout { flex-direction: column-reverse; }
+            .sidebar { flex: 0 0 auto; width: 100%; box-sizing: border-box; }
+            .main-content { min-height: 500px; }
         }
-        .config-button { 
-            background-color: #6366f1; 
-            padding: 0.5rem 1rem;
-            font-size: 0.875rem;
-        }
-        .config-button:hover {
-            background-color: #4f46e5; 
-        }
-        #fileUploadConfig {
-            display: none; 
-        }
-        .auto-ratio-section {
-            border-top: 1px solid #475569;
-            margin-top: 1rem;
-            padding-top: 1rem;
-        }
-        .calc-button:disabled {
-            background-color: #475569;
-            cursor: not-allowed;
-        }
-        .lang-button {
-            opacity: 0.5;
-            transition: opacity 0.2s;
-        }
-        .lang-button.active {
-            opacity: 1;
-            transform: scale(1.1);
-            box-shadow: 0 0 10px rgba(14, 165, 233, 0.7);
-            border-radius: 50%;
-        }
-
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-slate-900 text-slate-100 flex flex-col items-center justify-center min-h-screen p-4 selection:bg-sky-500 selection:text-white">
+<body>
 
-    <!-- Tela de Login -->
-    <div id="loginOverlay" class="fixed inset-0 bg-slate-900 bg-opacity-95 flex items-center justify-center z-50">
-        <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-sm relative">
-            <!-- Seletor de Idioma -->
-            <div class="absolute top-4 right-4 flex gap-3">
-                <button data-lang="pt" class="lang-button">
-                    <img src="https://flagcdn.com/w20/br.png" alt="Português">
-                </button>
-                <button data-lang="en" class="lang-button">
-                    <img src="https://flagcdn.com/w20/us.png" alt="English">
-                </button>
-            </div>
-            <h2 class="text-2xl font-bold text-sky-400 text-center mb-6" data-i18n-key="loginTitle">Login</h2>
-            <div class="space-y-4">
-                <div>
-                    <label for="username" class="block text-sm font-medium text-slate-300 mb-1" data-i18n-key="usernameLabel">Usuário</label>
-                    <input type="text" id="username" class="w-full p-3 bg-slate-700 text-slate-200 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
-                </div>
-                <div>
-                    <label for="password" class="block text-sm font-medium text-slate-300 mb-1" data-i18n-key="passwordLabel">Senha</label>
-                    <input type="password" id="password" class="w-full p-3 bg-slate-700 text-slate-200 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+    <div class="dashboard-layout">
+        <main class="main-content">
+            <div id="charts-container" style="display:none;">
+                <div class="chart-container" id="chartContainer">
+                    <canvas id="gexChart"></canvas>
                 </div>
             </div>
-            <p id="loginError" class="text-red-400 text-sm text-center h-5 mt-4"></p>
-            <button id="loginButton" class="w-full mt-4 bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 rounded-lg shadow-md transform hover:scale-105 transition-all" data-i18n-key="loginButton">Entrar</button>
-        </div>
-    </div>
-
-    <!-- Modal de Confirmação para Deletar Arquivos Antigos -->
-    <div id="confirmDeleteModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-80 flex items-center justify-center z-50 p-4">
-        <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-lg text-center">
-            <h2 class="text-3xl font-bold text-red-500 mb-4" data-i18n-key="attention">ATENÇÃO!</h2>
-            <p class="text-lg text-slate-200 mb-2" data-i18n-key="deleteWarning">
-                É essencial <strong class="font-bold text-yellow-300" data-i18n-key="delete">DELETAR OS ARQUIVOS ANTIGOS</strong> da pasta antes de fazer o download dos novos.
-            </p>
-            <p class="text-sm text-slate-400 mb-8" data-i18n-key="deleteReason">
-                Isso garante que seu programa de plotagem leia apenas os dados mais recentes, evitando erros.
-            </p>
-            <div class="flex justify-center gap-4">
-                <button id="cancelDownloadButton" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition-all" data-i18n-key="cancel">Cancelar</button>
-                <button id="confirmDownloadButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all" data-i18n-key="confirmDelete">Sim, já deletei. Prosseguir.</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Container Principal do Aplicativo (inicialmente oculto) -->
-    <div id="appContainer" class="hidden bg-slate-800-contrast p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
-        <header class="mb-6 sm:mb-8 text-center">
-            <h1 class="text-2xl sm:text-3xl font-bold text-sky-400" data-i18n-key="appTitle">Processador de Dados Gex</h1>
-            <p class="text-sm text-slate-400 mt-1" data-i18n-key="appSubtitle">Cole os dados, analise, defina ratios, configure e gere arquivos TXT.</p>
-        </header>
-
-        <main>
-            <div class="mb-6 p-4 bg-slate-700 rounded-lg">
-                <h2 class="text-lg font-semibold text-sky-300 mb-3 text-center" data-i18n-key="configTitle">Gerenciamento de Configurações</h2>
-                <div class="flex flex-col sm:flex-row justify-center items-center gap-3">
-                    <button id="loadConfigButton" class="config-button text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all w-full sm:w-auto" data-i18n-key="loadConfig">Carregar Configurações</button>
-                    <input type="file" id="fileUploadConfig" accept=".json">
-                    <button id="saveConfigButton" class="config-button text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all w-full sm:w-auto" data-i18n-key="saveConfig">Salvar Configurações Atuais</button>
-                </div>
-                <p id="configStatusMessage" class="text-xs text-slate-400 mt-2 text-center"></p>
-            </div>
-
-            <div class="mb-4">
-                <label for="rawData" class="block text-sm font-medium text-slate-300 mb-1" data-i18n-key="rawDataLabel">Dados:</label>
-                <textarea id="rawData" rows="4" class="w-full p-3 bg-slate-700 text-slate-200-contrast border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 placeholder-slate-500-contrast"></textarea>
-            </div>
-
-            <div class="mb-4 text-center">
-                <button id="analyzeFieldsButton" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all" data-i18n-key="analyzeButton">Analisar Dados</button>
-            </div>
-            
-            <div id="fieldsSelectionSection" class="mb-4 hidden">
-                <label class="block text-sm font-medium text-slate-300 mb-2" data-i18n-key="step1Title">1. Selecione os campos que deseja manter:</label>
-                <div id="fieldsCheckboxesContainer"></div>
-                <!-- Botões Removidos -->
-            </div>
-
-            <div id="ratiosSection" class="mb-4 hidden">
-                <label class="block text-sm font-medium text-slate-300 mb-2" data-i18n-key="step2Title">2. Para aplicar ratio, marque o ativo e defina o valor:</label>
-                <div id="ratiosInputContainer"></div>
-                <div class="auto-ratio-section">
-                    <h3 class="text-base font-medium text-slate-200 mb-3 text-center" data-i18n-key="autoRatioTitle">Cálculo de Ratio Automático (Yahoo Finance)</h3>
-                    <div class="text-center">
-                        <button id="calculateAllRatiosButton" class="calc-button bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all" disabled data-i18n-key="calculateAllRatios">Calcular Todos os Ratios</button>
-                    </div>
-                     <p id="ratioCalcStatus" class="text-center text-xs text-yellow-300 h-4 mt-2"></p>
-                </div>
-            </div>
-
-            <div id="generateOutputButtonContainer" class="mb-4 text-center hidden">
-                <button id="generateOutputButton" class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transform hover:scale-105 transition-all" data-i18n-key="generateOutput">Gerar Saída Processada</button>
-            </div>
-
-            <div id="processedDataSection" class="mb-4 hidden">
-                <label for="processedData" class="block text-sm font-medium text-slate-300 mb-1" data-i18n-key="processedDataLabel">Dados Processados (Prévia):</label>
-                <textarea id="processedData" rows="4" class="w-full p-3 bg-slate-700 text-slate-200-contrast border border-slate-600 rounded-lg readonly" readonly></textarea>
-            </div>
-            
-            <div id="configureTxtButtonContainer" class="mb-4 text-center hidden">
-                <button id="configureTxtButton" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transform hover:scale-105 transition-all" data-i18n-key="configureTxt">Configurar e Gerar Arquivos TXT</button>
-            </div>
-
-            <div id="txtConfigurationSection" class="mb-4 hidden">
-                <label class="block text-sm font-medium text-slate-300 mb-2" data-i18n-key="step3Title">3. Configure os Nomes dos Campos para os Arquivos TXT:</label>
-                <div id="txtConfigContainer"></div>
-                 <div class="mt-3 text-center">
-                    <button id="downloadTxtFilesButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all mr-2 mb-2" data-i18n-key="downloadIndividual">Baixar Arquivos TXT Individuais</button>
-                </div>
-            </div>
-            <div id="downloadLinksArea" class="mt-4 text-sm"></div>
-
         </main>
-        <footer class="mt-8 text-center"><p class="text-xs text-slate-500" data-i18n-key="footer">Processador de Dados Gex</p></footer>
+        <aside class="sidebar">
+            <div>
+                <div class="sidebar-header">
+                    <h1>classic</h1>
+                    <div class="header-icons">
+                         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 7h2v5h-2zm0 6h2v2h-2z"/></svg>
+                         <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69-.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61.22l2 3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                         <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6z"/></svg>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="tickerInput">Ticker</label>
+                    <input type="text" id="tickerInput" value="SPX">
+                </div>
+
+                <div class="control-group date-buttons">
+                    <button data-period="full">90d (agg)</button>
+                    <button data-period="zero" class="active">latest (0DTE)</button>
+                    <button data-period="one">next (1DTE)</button>
+                </div>
+                
+                <div id="status">Carregando dados...</div>
+                
+                <div id="sidebar-info" style="display:none;">
+                    <h3>Update</h3>
+                    <div class="info-item"><span class="label">Date</span><span class="value" id="timestamp_date">-</span></div>
+                    <div class="info-item"><span class="label">Time</span><span class="value" id="timestamp_time">-</span></div>
+                    <div class="info-item"><span class="label">Spot</span><span class="value" id="spot_price">-</span></div>
+
+                    <h3>Volume</h3>
+                    <div class="info-item"><span class="label">Zero Gamma</span><span class="value" id="zero_gamma">-</span></div>
+                    <div class="info-item"><span class="label">Major Positive</span><span class="value positive" id="mpos_oi">-</span></div>
+                    <div class="info-item"><span class="label">Major Negative</span><span class="value negative" id="mneg_oi">-</span></div>
+                    <div class="info-item"><span class="label">Net GEX</span><span class="value" id="net_gex_vol">-</span></div>
+                    
+                    <h3>Open Interest</h3>
+                    <div class="info-item"><span class="label">Major Positive</span><span class="value positive" id="oi_mpos">-</span></div>
+                    <div class="info-item"><span class="label">Major Negative</span><span class="value negative" id="oi_mneg">-</span></div>
+                    <div class="info-item"><span class="label">Net GEX</span><span class="value" id="net_gex_oi">-</span></div>
+
+                    <h3>Max Change GEX</h3>
+                    <div id="maxChangeList"></div>
+                </div>
+            </div>
+            <div class="sidebar-footer">
+                <div class="playback-controls">
+                    <svg viewBox="0 0 24 24"><path d="M19 12l-7-5.5v11l7-5.5zM5 6.5v11h2v-11H5z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M5 12l7 5.5V6.5L5 12zm14 0V6.5h-2v11h2V12z"/></svg>
+                </div>
+                 <span id="footer-time">4:00:00 PM</span>
+            </div>
+        </aside>
     </div>
 
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- INÍCIO DA SEÇÃO DE TRADUÇÃO (I18N) ---
-        const translations = {
-            en: {
-                loginTitle: "Login",
-                usernameLabel: "User",
-                passwordLabel: "Password",
-                loginButton: "Sign In",
-                loginError: "Invalid username or password.",
-                appTitle: "Gex Data Processor",
-                appSubtitle: "Paste data, analyze, set ratios, configure, and generate TXT files.",
-                configTitle: "Settings Management",
-                loadConfig: "Load Settings",
-                saveConfig: "Save Current Settings",
-                rawDataLabel: "Data:",
-                analyzeButton: "Analyze Data",
-                step1Title: "1. Select the fields to keep:",
-                selectAll: "Select All",
-                deselectAll: "Deselect All",
-                step2Title: "2. To apply a ratio, check the asset and set the value:",
-                autoRatioTitle: "Automatic Ratio Calculation (Yahoo Finance)",
-                calculateAllRatios: "Calculate All Ratios",
-                generateOutput: "Generate Processed Output",
-                processedDataLabel: "Processed Data (Preview):",
-                configureTxt: "Configure and Generate TXT Files",
-                step3Title: "3. Configure Field Names for TXT Files:",
-                downloadIndividual: "Download Individual TXT Files",
-                footer: "Gex Data Processor",
-                attention: "ATTENTION!",
-                deleteWarning: "It is essential to <strong class='font-bold text-yellow-300'>DELETE THE OLD FILES</strong> from the folder before downloading the new ones.",
-                deleteReason: "This ensures your plotting program reads only the latest data, avoiding errors.",
-                cancel: "Cancel",
-                confirmDelete: "Yes, I've deleted them. Proceed.",
-                configLoaded: `Configuration "{0}" loaded. Click "Analyze Data" to apply it.`,
-                configSaved: `Current settings saved to {0}`,
-                noValidData: "No valid data (ticker or field) found.",
-                noFieldsFound: "No data fields (e.g., Call Resistance, HVL) found, only tickers.",
-                noTickersForRatio: "No tickers available to set ratios (after exclusions).",
-                analysisDone: "Analysis complete. Define your settings.",
-                analysisDoneConfigLoaded: "Loaded configuration applied. For ratios, click the calculation button.",
-                noDataToProcess: "No data to process.",
-                noFieldsSelectedForTxt: "No fields were selected in Step 1 to configure for TXT.",
-                noDataForTxt: "No processed data to generate TXT files.",
-                noFilesGenerated: "No TXT files generated. Check settings and processed data.",
-                statusFetching: "Fetching prices...",
-                statusCalculatingVs: "Calculating vs {0}...",
-                statusDone: "All calculations complete!",
-                statusFailRef: "Failed to fetch reference price for {0}.",
-                statusFailTicker: "Failed to fetch price for {0}.",
-                statusInvalidPrice: "Invalid price for {0}."
-            },
-            pt: {
-                loginTitle: "Login",
-                usernameLabel: "Usuário",
-                passwordLabel: "Senha",
-                loginButton: "Entrar",
-                loginError: "Usuário ou senha inválidos.",
-                appTitle: "Processador de Dados Gex",
-                appSubtitle: "Cole os dados, analise, defina ratios, configure e gere arquivos TXT.",
-                configTitle: "Gerenciamento de Configurações",
-                loadConfig: "Carregar Configurações",
-                saveConfig: "Salvar Configurações Atuais",
-                rawDataLabel: "Dados:",
-                analyzeButton: "Analisar Dados",
-                step1Title: "1. Selecione os campos que deseja manter:",
-                selectAll: "Selecionar Todos",
-                deselectAll: "Desselecionar Todos",
-                step2Title: "2. Para aplicar ratio, marque o ativo e defina o valor:",
-                autoRatioTitle: "Cálculo de Ratio Automático (Yahoo Finance)",
-                calculateAllRatios: "Calcular Todos os Ratios",
-                generateOutput: "Gerar Saída Processada",
-                processedDataLabel: "Dados Processados (Prévia):",
-                configureTxt: "Configurar e Gerar Arquivos TXT",
-                step3Title: "3. Configure os Nomes dos Campos para os Arquivos TXT:",
-                downloadIndividual: "Baixar Arquivos TXT Individuais",
-                footer: "Processador de Dados Gex",
-                attention: "ATENÇÃO!",
-                deleteWarning: "É essencial <strong class='font-bold text-yellow-300'>DELETAR OS ARQUIVOS ANTIGOS</strong> da pasta antes de fazer o download dos novos.",
-                deleteReason: "Isso garante que seu programa de plotagem leia apenas os dados mais recentes, evitando erros.",
-                cancel: "Cancelar",
-                confirmDelete: "Sim, já deletei. Prosseguir.",
-                configLoaded: `Configuração "{0}" carregada. Clique em "Analisar Dados" para aplicá-la.`,
-                configSaved: `Configurações atuais salvas em {0}`,
-                noValidData: "Nenhum dado válido (ticker ou campo) encontrado.",
-                noFieldsFound: "Nenhum campo de dados (ex: Call Resistance, HVL) encontrado, apenas tickers.",
-                noTickersForRatio: "Nenhum ticker para definir ratios (após exclusões).",
-                analysisDone: "Análise concluída. Defina suas configurações.",
-                analysisDoneConfigLoaded: "Configuração carregada aplicada. Para os ratios, clique no botão de cálculo.",
-                noDataToProcess: "Nenhum dado para processar.",
-                noFieldsSelectedForTxt: "Nenhum campo foi selecionado na Etapa 1 para configurar para TXT.",
-                noDataForTxt: "Nenhum dado processado para gerar arquivos TXT.",
-                noFilesGenerated: "Nenhum arquivo TXT gerado. Verifique as configurações e os dados processados.",
-                statusFetching: "Buscando preços...",
-                statusCalculatingVs: "Calculando vs {0}...",
-                statusDone: "Todos os cálculos concluídos!",
-                statusFailRef: "Falha ao buscar preço de referência para {0}.",
-                statusFailTicker: "Falha ao buscar preço para {0}.",
-                statusInvalidPrice: "Preço inválido para {0}."
-            }
-        };
+        const apiKey = "dGkuGvazaESI"; 
 
-        let currentLanguage = 'pt'; // Default language
-
-        function setLanguage(lang) {
-            currentLanguage = lang;
-            document.documentElement.lang = lang;
-            document.querySelectorAll('[data-i18n-key]').forEach(element => {
-                const key = element.getAttribute('data-i18n-key');
-                if (translations[lang] && translations[lang][key]) {
-                    // Use innerHTML to allow for strong tags in translations
-                    element.innerHTML = translations[lang][key];
-                }
-            });
-             document.querySelectorAll('[data-i18n-placeholder-key]').forEach(element => {
-                const key = element.getAttribute('data-i18n-placeholder-key');
-                if (translations[lang] && translations[lang][key]) {
-                    element.placeholder = translations[lang][key];
-                }
-            });
-
-            // Update language switcher visual state
-            document.querySelectorAll('.lang-button').forEach(btn => {
-                if (btn.dataset.lang === lang) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-        }
-
-        document.querySelectorAll('.lang-button').forEach(button => {
-            button.addEventListener('click', () => {
-                setLanguage(button.dataset.lang);
-            });
-        });
-
-        // Initialize with default language
-        setLanguage('pt');
-        // --- FIM DA SEÇÃO DE TRADUÇÃO ---
-
-
-        // ---- INÍCIO DA SEÇÃO DE LOGIN ----
-        const loginOverlay = document.getElementById('loginOverlay');
-        const appContainer = document.getElementById('appContainer');
-        const usernameInput = document.getElementById('username');
-        const passwordInput = document.getElementById('password');
-        const loginButton = document.getElementById('loginButton');
-        const loginError = document.getElementById('loginError');
-
-        // --- Altere o usuário e a senha aqui ---
-        const correctUser = "GEX";
-        const correctPass = "GEX"; 
-
-        function attemptLogin() {
-            const user = usernameInput.value;
-            const pass = passwordInput.value;
-
-            if (user === correctUser && pass === correctPass) {
-                // Sucesso
-                loginOverlay.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-            } else {
-                // Falha
-                loginError.textContent = translations[currentLanguage].loginError;
-                setTimeout(() => {
-                    loginError.textContent = "";
-                }, 3000);
-            }
-        }
-
-        loginButton.addEventListener('click', attemptLogin);
-        passwordInput.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
-                attemptLogin();
-            }
-        });
-        // ---- FIM DA SEÇÃO DE LOGIN ----
+        // --- Elementos da página ---
+        const tickerInput = document.getElementById('tickerInput');
+        const periodButtons = document.querySelector('.date-buttons');
+        const statusEl = document.getElementById('status');
+        const sidebarInfoEl = document.getElementById('sidebar-info');
+        const chartsContainerEl = document.getElementById('charts-container');
         
-        // ---- CÓDIGO DO APLICATIVO PRINCIPAL ----
-        const rawDataTextarea = document.getElementById('rawData');
-        const analyzeFieldsButton = document.getElementById('analyzeFieldsButton');
-        const fieldsSelectionSection = document.getElementById('fieldsSelectionSection');
-        const fieldsCheckboxesContainer = document.getElementById('fieldsCheckboxesContainer');
-        const selectAllFieldsButton = document.getElementById('selectAllFields');
-        const deselectAllFieldsButton = document.getElementById('deselectAllFields');
-        const ratiosSection = document.getElementById('ratiosSection');
-        const ratiosInputContainer = document.getElementById('ratiosInputContainer');
-        const generateOutputButtonContainer = document.getElementById('generateOutputButtonContainer');
-        const generateOutputButton = document.getElementById('generateOutputButton');
-        const processedDataSection = document.getElementById('processedDataSection');
-        const processedDataTextarea = document.getElementById('processedData');
-        const configureTxtButtonContainer = document.getElementById('configureTxtButtonContainer');
-        const configureTxtButton = document.getElementById('configureTxtButton');
-        const txtConfigurationSection = document.getElementById('txtConfigurationSection');
-        const txtConfigContainer = document.getElementById('txtConfigContainer');
-        const downloadTxtFilesButton = document.getElementById('downloadTxtFilesButton');
-        const downloadLinksArea = document.getElementById('downloadLinksArea');
-        const loadConfigButton = document.getElementById('loadConfigButton');
-        const saveConfigButton = document.getElementById('saveConfigButton');
-        const fileUploadConfig = document.getElementById('fileUploadConfig');
-        const configStatusMessage = document.getElementById('configStatusMessage');
-        const calculateAllRatiosButton = document.getElementById('calculateAllRatiosButton');
-        const ratioCalcStatus = document.getElementById('ratioCalcStatus');
-        const confirmDeleteModal = document.getElementById('confirmDeleteModal');
-        const cancelDownloadButton = document.getElementById('cancelDownloadButton');
-        const confirmDownloadButton = document.getElementById('confirmDownloadButton');
-
-        let cachedCleanedLines = []; 
-        let originalFieldOrder = []; 
-        let uniqueTickers = []; 
-        let tickersForRatioDisplay = [];
-        let currentProcessedData = {}; 
-        let loadedConfiguration = null; 
-
-        // Restante do código...
-
-        function parseDataLine(line) {
-            const tickerEndIndex = line.indexOf(':');
-            if (tickerEndIndex === -1) return { ticker: line.trim(), fields: {}, lineFieldOrder: [] };
-            const ticker = line.substring(0, tickerEndIndex + 1).trim();
-            const dataPart = line.substring(tickerEndIndex + 1).trim();
-            const pairs = dataPart.split(',');
-            const fields = {};
-            const lineFieldOrder = [];
-            for (let i = 0; i < pairs.length; i += 2) {
-                const fieldName = pairs[i] ? pairs[i].trim() : null;
-                const fieldValue = pairs[i+1] ? pairs[i+1].trim() : null;
-                if (fieldName && fieldValue !== null) {
-                    fields[fieldName] = fieldValue;
-                    if (!lineFieldOrder.includes(fieldName)) lineFieldOrder.push(fieldName);
-                } else if (fieldName && fieldValue === null && i + 1 >= pairs.length) {
-                    fields[fieldName] = ""; 
-                    if (!lineFieldOrder.includes(fieldName)) lineFieldOrder.push(fieldName);
-                }
-            }
-            return { ticker, fields, lineFieldOrder };
+        // --- Variáveis de estado ---
+        let currentPeriod = 'zero';
+        let myGexChart = null;
+        
+        // --- Funções Auxiliares ---
+        function formatNumber(num, fractionDigits = 2) {
+            if (typeof num !== 'number') return '-';
+            return num.toLocaleString('pt-BR', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
         }
-
-        function applyLoadedConfigStep1() {
-            if (loadedConfiguration && loadedConfiguration.selectedFieldsStep1) {
-                const allFieldCheckboxes = fieldsCheckboxesContainer.querySelectorAll('input[type="checkbox"]');
-                allFieldCheckboxes.forEach(cb => {
-                    cb.checked = loadedConfiguration.selectedFieldsStep1.includes(cb.value);
-                });
+        function formatBillions(num) {
+            if (typeof num !== 'number') return '-';
+            const value = (num / 1_000_000_000);
+            return `${value.toFixed(4)}Bn`;
+        }
+        function setStatus(message, isLoading = false) {
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+            if (isLoading) {
+                sidebarInfoEl.style.display = 'none';
+                chartsContainerEl.style.display = 'none';
+            } else if (!message) {
+                 statusEl.style.display = 'none';
+                 sidebarInfoEl.style.display = 'block';
+                 chartsContainerEl.style.display = 'block';
             }
         }
         
-        function applyLoadedConfigStep3() {
-            if (loadedConfiguration && loadedConfiguration.txtConfigsStep3) {
-                txtConfigContainer.querySelectorAll('.txt-config-item').forEach(item => {
-                    const originalField = item.querySelector('input[type="text"]').dataset.originalField;
-                    const txtNameInput = item.querySelector('input[type="text"]');
-                    const txtNumInput = item.querySelector('.txt-num-input'); 
-
-                    if (loadedConfiguration.txtConfigsStep3[originalField]) {
-                        const config = loadedConfiguration.txtConfigsStep3[originalField];
-                        txtNameInput.value = config.txtName || originalField;
-                        txtNumInput.value = config.txtNum || ''; 
-                    } else { 
-                        txtNameInput.value = originalField;
-                        txtNumInput.value = ''; 
-                    }
-                });
-            } else { 
-                 txtConfigContainer.querySelectorAll('.txt-config-item .txt-num-input').forEach(input => {
-                    input.value = '';
-                });
-            }
+        /**
+         * Cria uma URL de proxy usando um serviço robusto para contornar problemas de CORS.
+         * @param {string} targetUrl A URL da API que se pretende aceder.
+         * @returns {string} A URL completa do proxy.
+         */
+        function createProxiedUrl(targetUrl) {
+            // CORREÇÃO: Usando o proxy api.codetabs.com/v1/proxy
+            return `https://api.codetabs.com/v1/proxy/?quest=${targetUrl}`;
         }
 
-        analyzeFieldsButton.addEventListener('click', () => {
-            const inputText = rawDataTextarea.value;
-            const lines = inputText.split('\n');
-            cachedCleanedLines = [];
-            const allFields = new Set();
-            const fieldOrderMap = new Map();
-            const tickersSet = new Set();
-            
-            lines.forEach(line => {
-                const trimmedLine = line.trim();
-                if (trimmedLine.startsWith('$')) {
-                    cachedCleanedLines.push(trimmedLine);
-                    const { ticker, fields, lineFieldOrder } = parseDataLine(trimmedLine);
-                    tickersSet.add(ticker); 
+        /**
+         * Faz o fetch através do proxy e processa a resposta.
+         * @param {string} proxiedUrl A URL do proxy já criada.
+         * @returns {Promise<any>} Uma promessa que resolve com os dados JSON da API de destino.
+         */
+        async function fetchAndParseProxied(proxiedUrl) {
+            const response = await fetch(proxiedUrl);
+            if (!response.ok) {
+                 throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+        }
 
-                    lineFieldOrder.forEach(fieldName => {
-                        allFields.add(fieldName);
-                        if (!fieldOrderMap.has(fieldName)) fieldOrderMap.set(fieldName, fieldOrderMap.size);
-                    });
-                }
-            });
 
-            const hasEsTickers = tickersSet.has('$SPX:') || tickersSet.has('$SPY:');
-            const hasNqTickers = tickersSet.has('$NDX:') || tickersSet.has('$QQQ:');
-            const hasGldTicker = tickersSet.has('$GLD:');
-            calculateAllRatiosButton.disabled = !(hasEsTickers || hasNqTickers || hasGldTicker);
-            
-            originalFieldOrder = Array.from(allFields).sort((a, b) => (fieldOrderMap.get(a) || 0) - (fieldOrderMap.get(b) || 0));
-            uniqueTickers = Array.from(tickersSet);
-
-            const preferredTickerOrder = ['$SPX:', '$SPY:', '$GLD:']; 
-            uniqueTickers.sort((a, b) => {
-                const indexA = preferredTickerOrder.indexOf(a);
-                const indexB = preferredTickerOrder.indexOf(b);
-                if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-                if (indexA !== -1) return -1;
-                if (indexB !== -1) return 1;
-                return a.localeCompare(b);
-            });
-
-            const excludedTickersForRatio = ['$ES1!:', '$NQ1!:', '$GC1!:'];
-            tickersForRatioDisplay = uniqueTickers.filter(ticker => !excludedTickersForRatio.includes(ticker));
-
-            fieldsCheckboxesContainer.innerHTML = ''; 
-            if (originalFieldOrder.length === 0 && uniqueTickers.length === 0) {
-                fieldsCheckboxesContainer.innerHTML = `<p class="text-slate-400 text-sm">${translations[currentLanguage].noValidData}</p>`;
-                fieldsSelectionSection.classList.remove('hidden');
-                ratiosSection.classList.add('hidden');
-                generateOutputButtonContainer.classList.add('hidden');
-                processedDataSection.classList.add('hidden');
-                configureTxtButtonContainer.classList.add('hidden');
-                txtConfigurationSection.classList.add('hidden');
-                configStatusMessage.textContent = translations[currentLanguage].analysisDoneConfigLoaded;
+        // --- Função Principal de Lógica e API ---
+        async function runUpdate() {
+            const ticker = tickerInput.value;
+            if (!ticker) {
+                setStatus("Por favor, insira um ticker.", true);
                 return;
             }
+            setStatus(`Carregando dados para ${ticker.toUpperCase()}...`, true);
 
-            if (originalFieldOrder.length > 0) {
-                originalFieldOrder.forEach(fieldName => {
-                    const checkboxId = `checkbox-field-${fieldName.replace(/\s+/g, '-')}`;
-                    const label = document.createElement('label');
-                    label.htmlFor = checkboxId;
-                    label.className = 'checkbox-label';
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.id = checkboxId;
-                    checkbox.value = fieldName;
-                    checkbox.checked = true; 
-                    label.appendChild(checkbox);
-                    label.appendChild(document.createTextNode(fieldName));
-                    fieldsCheckboxesContainer.appendChild(label);
-                });
-                applyLoadedConfigStep1(); 
-                fieldsSelectionSection.classList.remove('hidden');
-            } else {
-                 fieldsCheckboxesContainer.innerHTML = `<p class="text-slate-400 text-sm">${translations[currentLanguage].noFieldsFound}</p>`;
-                 fieldsSelectionSection.classList.remove('hidden');
-            }
+            const baseApiUrl = `https://api.gexbot.com/${ticker.toUpperCase()}/classic/${currentPeriod}`;
+            const majorsUrl = createProxiedUrl(`${baseApiUrl}/majors?key=${apiKey}`);
+            const maxChangeUrl = createProxiedUrl(`${baseApiUrl}/maxchange?key=${apiKey}`);
+            const fullChainUrl = createProxiedUrl(`${baseApiUrl}?key=${apiKey}`);
 
-            ratiosInputContainer.innerHTML = '';
-            if (tickersForRatioDisplay.length > 0) {
-                tickersForRatioDisplay.forEach(tickerName => {
-                    const cleanTickerName = tickerName.replace(/[^a-zA-Z0-9!$]/g, ''); 
-                    const itemContainer = document.createElement('label'); 
-                    itemContainer.className = 'ratio-item-label';
-                    
-                    const ratioCheckbox = document.createElement('input');
-                    ratioCheckbox.type = 'checkbox';
-                    ratioCheckbox.id = `ratio-checkbox-${cleanTickerName}`;
-                    ratioCheckbox.dataset.ticker = tickerName;
-
-                    const tickerNameSpan = document.createElement('span');
-                    tickerNameSpan.className = 'ratio-ticker-name';
-                    tickerNameSpan.textContent = tickerName;
-                    
-                    const ratioInput = document.createElement('input');
-                    ratioInput.type = 'number';
-                    ratioInput.id = `ratio-input-${cleanTickerName}`;
-                    ratioInput.dataset.ticker = tickerName; 
-                    ratioInput.value = '1'; 
-                    ratioInput.step = 'any'; 
-                    ratioInput.disabled = true; 
-
-                    ratioCheckbox.addEventListener('change', (event) => {
-                        ratioInput.disabled = !event.target.checked;
-                        if (!event.target.checked) {
-                            ratioInput.value = '1'; 
-                        }
-                    });
-                    
-                    itemContainer.appendChild(ratioCheckbox);
-                    itemContainer.appendChild(tickerNameSpan);
-                    itemContainer.appendChild(ratioInput);
-                    ratiosInputContainer.appendChild(itemContainer);
-                });
-                ratiosSection.classList.remove('hidden');
-            } else {
-                 ratiosInputContainer.innerHTML = `<p class="text-slate-400 text-sm">${translations[currentLanguage].noTickersForRatio}</p>`;
-                 ratiosSection.classList.remove('hidden'); 
-            }
-            
-            if (originalFieldOrder.length > 0 || uniqueTickers.length > 0) {
-                 generateOutputButtonContainer.classList.remove('hidden');
-            } else {
-                generateOutputButtonContainer.classList.add('hidden');
-            }
-            processedDataSection.classList.add('hidden');
-            configureTxtButtonContainer.classList.add('hidden');
-            txtConfigurationSection.classList.add('hidden');
-            processedDataTextarea.value = '';
-            downloadLinksArea.innerHTML = '';
-            if(loadedConfiguration) {
-                configStatusMessage.textContent = translations[currentLanguage].analysisDoneConfigLoaded;
-            } else {
-                configStatusMessage.textContent = translations[currentLanguage].analysisDone;
-            }
-        });
-        
-        generateOutputButton.addEventListener('click', () => {
-            const selectedFields = Array.from(fieldsCheckboxesContainer.querySelectorAll('input[type="checkbox"]:checked'))
-                                      .map(cb => cb.value);
-            const tickerRatios = {};
-            ratiosInputContainer.querySelectorAll('.ratio-item-label').forEach(item => {
-                const checkbox = item.querySelector('input[type="checkbox"]');
-                const input = item.querySelector('input[type="number"]');
-                const ticker = checkbox.dataset.ticker;
-                if (checkbox.checked) {
-                    const ratioValue = parseFloat(input.value);
-                    tickerRatios[ticker] = !isNaN(ratioValue) ? ratioValue : 1;
-                } else {
-                    tickerRatios[ticker] = 1; 
-                }
-            });
-            
-            const outputLines = [];
-            currentProcessedData = {}; 
-
-            cachedCleanedLines.forEach(line => {
-                const { ticker, fields } = parseDataLine(line); 
-                const assetRatio = tickerRatios[ticker] !== undefined ? tickerRatios[ticker] : 1; 
+            try {
+                const [majorsData, maxChangeData, fullChainData] = await Promise.all([
+                    fetchAndParseProxied(majorsUrl),
+                    fetchAndParseProxied(maxChangeUrl),
+                    fetchAndParseProxied(fullChainUrl)
+                ]);
                 
-                if (!currentProcessedData[ticker]) {
-                    currentProcessedData[ticker] = {};
+                updateSidebar(majorsData, maxChangeData);
+                drawGexProfileChart(fullChainData, majorsData);
+                
+                setStatus(null);
+
+            } catch (error) {
+                console.error("Falha ao atualizar dados:", error);
+                setStatus(`Erro ao carregar: ${error.message}.`, true);
+            }
+        }
+        
+        // --- Funções de Atualização da UI ---
+        function updateSidebar(majors, maxChange) {
+            const date = new Date(majors.timestamp * 1000); 
+            document.getElementById('timestamp_date').textContent = date.toLocaleDateString('pt-BR');
+            const timeString = date.toLocaleTimeString('pt-BR');
+            document.getElementById('timestamp_time').textContent = timeString;
+            document.getElementById('footer-time').textContent = timeString;
+
+            document.getElementById('spot_price').textContent = formatNumber(majors.spot, 2);
+            document.getElementById('zero_gamma').textContent = formatNumber(majors.zero_gamma, 2);
+            document.getElementById('mpos_oi').textContent = formatNumber(majors.mpos_oi, 2);
+            document.getElementById('mneg_oi').textContent = formatNumber(majors.mneg_oi, 2);
+            document.getElementById('oi_mpos').textContent = formatNumber(majors.oi_mpos, 2);
+            document.getElementById('oi_mneg').textContent = formatNumber(majors.oi_mneg, 2);
+
+            const netGexVolEl = document.getElementById('net_gex_vol');
+            netGexVolEl.textContent = formatNumber(majors.net_gex_vol, 4);
+            netGexVolEl.className = `value ${majors.net_gex_vol > 0 ? 'positive' : 'negative'}`;
+            
+            const netGexOiEl = document.getElementById('net_gex_oi');
+            netGexOiEl.textContent = formatNumber(majors.net_gex_oi, 4);
+            netGexOiEl.className = `value ${majors.net_gex_oi > 0 ? 'positive' : 'negative'}`;
+
+            const maxChangeListEl = document.getElementById("maxChangeList");
+            maxChangeListEl.innerHTML = '';
+            const intervals = {'one':'1 min', 'five':'5 min', 'ten':'10 min'};
+            for(const key in intervals) {
+                const data = maxChange[key];
+                if(data) {
+                    const valueClass = data[1] > 0 ? 'positive' : 'negative';
+                    maxChangeListEl.innerHTML += `
+                        <div class="info-item">
+                            <span class="label">${intervals[key]}</span>
+                            <span class="value">${formatNumber(data[0])} <span class="${valueClass}">${formatBillions(data[1])}</span></span>
+                        </div>`;
                 }
+            }
+        }
 
-                let outputForAssetPreview = ticker; 
-                let hasFieldsForThisAssetPreview = false;
-
-                originalFieldOrder.forEach(fieldName => {
-                    if (selectedFields.includes(fieldName) && fields.hasOwnProperty(fieldName)) {
-                        let originalFieldValue = fields[fieldName];
-                        let processedFieldValueForPreview = originalFieldValue; 
-                        
-                        const numericValue = parseFloat(originalFieldValue.replace(',', '.'));
-
-                        if (!isNaN(numericValue)) { 
-                            let valueForStorage = numericValue; 
-                            if (assetRatio !== 1) { 
-                                valueForStorage = numericValue * assetRatio;
+        // --- Função do Gráfico ---
+        function drawGexProfileChart(fullChainData, annotationValues) {
+            if (myGexChart) myGexChart.destroy();
+            const chartData = fullChainData.strikes.map(s => ({ x: s[1], y: s[0] }));
+            const ctx = document.getElementById('gexChart').getContext('2d');
+            myGexChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: (c) => c.raw.x >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)',
+                        borderColor: (c) => c.raw.x >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)',
+                        borderWidth: 1, barPercentage: 1.0, categoryPercentage: 1.0
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { position: 'top', ticks: { color: '#FFFFFF', callback: (v) => `${(v/1e9).toFixed(3)}` }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+                        y: { type: 'linear', ticks: { color: '#FFFFFF', stepSize: 25 }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        annotation: {
+                            annotations: {
+                                zero_gamma_line: { type: 'line', yMin: annotationValues.zero_gamma, yMax: annotationValues.zero_gamma, borderColor: '#f0b90b', borderWidth: 2, label: { content: `${formatNumber(annotationValues.zero_gamma)}`, enabled: true, position: 'end', backgroundColor: '#f0b90b', color: '#000', font: { weight: 'bold' } } },
+                                mpos_oi_line: { type: 'line', yMin: annotationValues.mpos_oi, yMax: annotationValues.mpos_oi, borderColor: '#28a745', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(annotationValues.mpos_oi)}`, enabled: true, position: 'start', backgroundColor: '#28a745', font: { weight: 'bold' } } },
+                                mneg_oi_line: { type: 'line', yMin: annotationValues.mneg_oi, yMax: annotationValues.mneg_oi, borderColor: '#dc3545', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(annotationValues.mneg_oi)}`, enabled: true, position: 'start', backgroundColor: '#dc3545', font: { weight: 'bold' } } },
+                                spot_line: { type: 'line', yMin: annotationValues.spot, yMax: annotationValues.spot, borderColor: '#FFFFFF', borderWidth: 1.5 }
                             }
-                            processedFieldValueForPreview = valueForStorage.toFixed(2).replace('.', ',');
-                            currentProcessedData[ticker][fieldName] = valueForStorage; 
-                        } else {
-                             currentProcessedData[ticker][fieldName] = originalFieldValue; 
                         }
-                        
-                        if (hasFieldsForThisAssetPreview) {
-                           outputForAssetPreview += ","; 
-                        }
-                        outputForAssetPreview += ` ${fieldName}, ${processedFieldValueForPreview}`; 
-                        hasFieldsForThisAssetPreview = true;
                     }
-                });
-
-                if (hasFieldsForThisAssetPreview || (selectedFields.length === 0 && cachedCleanedLines.some(l => l.startsWith(ticker)))) {
-                     outputLines.push(outputForAssetPreview.trim());
                 }
             });
-            
-            if (outputLines.length > 0) {
-                 processedDataTextarea.value = outputLines.join('\n\n');
-                 processedDataSection.classList.remove('hidden');
-                 configureTxtButtonContainer.classList.remove('hidden');
-                 txtConfigurationSection.classList.add('hidden'); 
-                 downloadLinksArea.innerHTML = ''; 
-            } else if (cachedCleanedLines.length > 0 && selectedFields.length === 0 ) {
-                 processedDataTextarea.value = cachedCleanedLines.join('\n\n'); 
-                 processedDataSection.classList.remove('hidden');
-                 configureTxtButtonContainer.classList.remove('hidden');
-                 txtConfigurationSection.classList.add('hidden');
-                 downloadLinksArea.innerHTML = '';
-            } else if (cachedCleanedLines.length > 0 && selectedFields.length > 0){
-                processedDataTextarea.value = translations[currentLanguage].noDataToProcess;
-                processedDataSection.classList.remove('hidden');
-                configureTxtButtonContainer.classList.add('hidden');
-                txtConfigurationSection.classList.add('hidden');
-            } else {
-                 processedDataTextarea.value = translations[currentLanguage].noDataToProcess;
-                 processedDataSection.classList.remove('hidden');
-                 configureTxtButtonContainer.classList.add('hidden');
-                 txtConfigurationSection.classList.add('hidden');
+        }
+
+        // --- Event Listeners ---
+        periodButtons.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+                document.querySelector('.date-buttons button.active').classList.remove('active');
+                e.target.classList.add('active');
+                currentPeriod = e.target.dataset.period;
+                runUpdate();
             }
         });
-
-        configureTxtButton.addEventListener('click', () => {
-            txtConfigContainer.innerHTML = ''; 
-            const selectedFieldsFromStep1 = Array.from(fieldsCheckboxesContainer.querySelectorAll('input[type="checkbox"]:checked'))
-                                               .map(cb => cb.value);
-
-            if (selectedFieldsFromStep1.length === 0) {
-                txtConfigContainer.innerHTML = `<p class="text-slate-400 text-sm">${translations[currentLanguage].noFieldsSelectedForTxt}</p>`;
-                txtConfigurationSection.classList.remove('hidden');
-                return;
-            }
-            
-            originalFieldOrder.forEach(fieldName => {
-                if (selectedFieldsFromStep1.includes(fieldName)) {
-                    const cleanFieldName = fieldName.replace(/\s+/g, '-');
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'txt-config-item items-center mb-2'; 
-
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'original-field-name';
-                    nameSpan.textContent = fieldName + ":";
-                    itemDiv.appendChild(nameSpan);
-
-                    const txtNameInput = document.createElement('input');
-                    txtNameInput.type = 'text';
-                    txtNameInput.placeholder = 'Nome no TXT (ex: Call Wall)';
-                    txtNameInput.dataset.originalField = fieldName;
-                    txtNameInput.id = `txt-name-${cleanFieldName}`;
-                    txtNameInput.value = fieldName; 
-                    itemDiv.appendChild(txtNameInput);
-
-                    const txtNumInput = document.createElement('input');
-                    txtNumInput.type = 'text'; 
-                    txtNumInput.placeholder = '# (Opc.)';
-                    txtNumInput.className = 'txt-num-input'; 
-                    txtNumInput.dataset.originalField = fieldName;
-                    txtNumInput.id = `txt-num-${cleanFieldName}`;
-                    txtNumInput.value = ''; 
-                    itemDiv.appendChild(txtNumInput);
-                    
-                    txtConfigContainer.appendChild(itemDiv);
-                }
-            });
-            applyLoadedConfigStep3(); 
-            txtConfigurationSection.classList.remove('hidden');
-            downloadLinksArea.innerHTML = ''; 
-        });
+        tickerInput.addEventListener('change', runUpdate);
         
-        function generateTxtContentForAsset(tickerWithColon, assetData, txtConfigs, formattedDate, originalFieldOrder) {
-            const baseFilename = tickerWithColon.replace(':', ''); 
-            const fieldSuffixForTxt = baseFilename.replace('$', '');    
-            
-            let txtContentForAsset = `${formattedDate}\n\n`;
-            const valueToFieldConfigsMap = new Map();
-            
-            originalFieldOrder.forEach(originalFieldName => {
-                if (assetData.hasOwnProperty(originalFieldName) && txtConfigs.hasOwnProperty(originalFieldName)) {
-                    let value = assetData[originalFieldName]; 
-                    if (typeof value === 'number') {
-                        value = value.toString().replace('.', ',');
-                    }
-                    if (!valueToFieldConfigsMap.has(value)) {
-                        valueToFieldConfigsMap.set(value, []);
-                    }
-                    valueToFieldConfigsMap.get(value).push(txtConfigs[originalFieldName]);
-                }
-            });
-
-            let hasContentForThisFile = false;
-            valueToFieldConfigsMap.forEach((configs, valueString) => {
-                const combinedName = configs.map(c => c.name).join(' / ');
-                let numPart = '# '; 
-                if (configs.length > 0 && configs[0].num) { 
-                    numPart = `#${configs[0].num} `; 
-                }
-
-                let finalFieldNameInTxt = combinedName;
-                if (!tickerWithColon.endsWith('1!:')) {
-                    finalFieldNameInTxt += `_${fieldSuffixForTxt}`;
-                }
-                
-                txtContentForAsset += `${valueString} ${numPart}"${finalFieldNameInTxt}"\n`;
-                hasContentForThisFile = true;
-            });
-            return hasContentForThisFile ? txtContentForAsset : null;
-        }
-
-        function triggerDownloads() {
-            downloadLinksArea.innerHTML = ''; 
-            const now = new Date();
-            let targetDate = new Date(now);
-            if (now.getHours() >= 19) {
-                targetDate.setDate(targetDate.getDate() + 1);
-            }
-
-            const day = String(targetDate.getDate()).padStart(2, '0');
-            const month = String(targetDate.getMonth() + 1).padStart(2, '0'); 
-            const year = targetDate.getFullYear();
-            
-            let formattedDate;
-            if (currentLanguage === 'en') {
-                formattedDate = `${month}/${day}/${year}`;
-            } else {
-                formattedDate = `${day}/${month}/${year}`;
-            }
-
-            const txtConfigs = {};
-            txtConfigContainer.querySelectorAll('.txt-config-item').forEach(item => {
-                const originalField = item.querySelector('input[type="text"]').dataset.originalField;
-                const txtName = item.querySelector('input[type="text"]').value.trim();
-                const txtNum = item.querySelector('.txt-num-input').value.trim(); 
-                if (originalField) {
-                    txtConfigs[originalField] = { name: txtName || originalField, num: txtNum };
-                }
-            });
-
-            if (Object.keys(currentProcessedData).length === 0) {
-                downloadLinksArea.innerHTML = `<p class="text-red-400">${translations[currentLanguage].noDataForTxt}</p>`;
-                return;
-            }
-            
-            let filesGenerated = 0;
-            for (const tickerWithColon in currentProcessedData) {
-                const assetData = currentProcessedData[tickerWithColon];
-                const txtContent = generateTxtContentForAsset(tickerWithColon, assetData, txtConfigs, formattedDate, originalFieldOrder);
-
-                if (txtContent) {
-                    filesGenerated++;
-                    const baseFilename = tickerWithColon.replace(':', ''); 
-                    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `${baseFilename}.txt`; 
-                    link.textContent = `${translations[currentLanguage].downloadIndividual.split(' ')[0]} ${link.download}`;
-                    link.className = "inline-block bg-blue-500 hover:bg-blue-600 text-white font-semibold py-1 px-3 rounded-md text-xs mr-2 mb-2";
-                    
-                    const p = document.createElement('p');
-                    p.appendChild(link);
-                    downloadLinksArea.appendChild(p);
-                    link.click();
-                }
-            }
-            if(filesGenerated === 0){
-                downloadLinksArea.innerHTML = `<p class="text-yellow-400">${translations[currentLanguage].noFilesGenerated}</p>`;
-            }
-        }
-        
-        downloadTxtFilesButton.addEventListener('click', () => {
-            confirmDeleteModal.classList.remove('hidden');
-        });
-        cancelDownloadButton.addEventListener('click', () => {
-            confirmDeleteModal.classList.add('hidden');
-        });
-        confirmDownloadButton.addEventListener('click', () => {
-            confirmDeleteModal.classList.add('hidden');
-            triggerDownloads();
-        });
-
-
-        loadConfigButton.addEventListener('click', () => {
-            fileUploadConfig.click(); 
-        });
-
-        fileUploadConfig.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const config = JSON.parse(e.target.result);
-                        if (config && config.version === 1) { 
-                            loadedConfiguration = config;
-                            if (config.language) {
-                                setLanguage(config.language);
-                            }
-                            configStatusMessage.textContent = translations[currentLanguage].configLoaded.replace('{0}', file.name);
-                            configStatusMessage.className = "text-xs text-green-400 mt-2 text-center";
-                            fileUploadConfig.value = '';
-                        } else {
-                            configStatusMessage.textContent = "Erro: Arquivo de configuração inválido ou versão incompatível.";
-                            configStatusMessage.className = "text-xs text-red-400 mt-2 text-center";
-                        }
-                    } catch (error) {
-                        configStatusMessage.textContent = `Erro ao ler o arquivo de configuração: ${error.message}`;
-                        configStatusMessage.className = "text-xs text-red-400 mt-2 text-center";
-                    }
-                };
-                reader.readAsText(file);
-            }
-        });
-
-        saveConfigButton.addEventListener('click', () => {
-            const selectedFieldsStep1 = Array.from(fieldsCheckboxesContainer.querySelectorAll('input[type="checkbox"]:checked'))
-                                          .map(cb => cb.value);
-
-            const ratioSettingsStep2 = {};
-            ratiosInputContainer.querySelectorAll('.ratio-item-label').forEach(item => {
-                const checkbox = item.querySelector('input[type="checkbox"]');
-                const input = item.querySelector('input[type="number"]');
-                const ticker = checkbox.dataset.ticker;
-                ratioSettingsStep2[ticker] = {
-                    applyRatio: checkbox.checked,
-                    ratioValue: input.value
-                };
-            });
-
-            const txtConfigsStep3 = {};
-            if (txtConfigContainer.querySelector('.txt-config-item')) {
-                txtConfigContainer.querySelectorAll('.txt-config-item').forEach(itemDiv => {
-                    const originalFieldInput = itemDiv.querySelector('input[type="text"]');
-                    if (originalFieldInput && originalFieldInput.dataset.originalField) {
-                        const originalField = originalFieldInput.dataset.originalField;
-                        const txtName = originalFieldInput.value.trim();
-                        const txtNum = itemDiv.querySelector('.txt-num-input').value.trim(); 
-                        txtConfigsStep3[originalField] = {
-                            txtName: txtName || originalField,
-                            txtNum: txtNum
-                        };
-                    }
-                });
-            }
-
-            const currentFullConfiguration = {
-                version: 1,
-                language: currentLanguage,
-                selectedFieldsStep1: selectedFieldsStep1,
-                ratioSettingsStep2: ratioSettingsStep2,
-                txtConfigsStep3: txtConfigsStep3
-            };
-
-            const configString = JSON.stringify(currentFullConfiguration, null, 2); 
-            const blob = new Blob([configString], { type: 'application/json;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            const filename = 'gex_configs.json';
-            link.href = url;
-            link.download = filename; 
-            document.body.appendChild(link); 
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            configStatusMessage.textContent = translations[currentLanguage].configSaved.replace('{0}', filename);
-            configStatusMessage.className = "text-xs text-green-400 mt-2 text-center";
-        });
-
-        // ---- Funções para Cálculo Automático de Ratio ----
-        const tickerMapping = {
-            '$SPX:': '^GSPC',
-            '$NDX:': '^NDX',
-            '$SPY:': 'SPY',
-            '$QQQ:': 'QQQ',
-            '$GLD:': 'GLD',
-            '$IWM:': 'IWM',
-            // Tickers de referência
-            'ref_es': 'ES=F',
-            'ref_nq': 'NQ=F',
-            'ref_gc': 'GC=F'
-        };
-
-        async function fetchPrice(apiSymbol, retries = 5, delay = 1500) { 
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const cacheBuster = `_=${new Date().getTime()}`;
-                    const proxyUrl = 'https://api.allorigins.win/get?url=';
-                    const apiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${apiSymbol}?${cacheBuster}`;
-                    
-                    const response = await fetch(proxyUrl + encodeURIComponent(apiUrl));
-                    if (!response.ok) throw new Error(`Network response was not ok for ${apiSymbol}`);
-                    const data = await response.json();
-                    const result = JSON.parse(data.contents);
-                    
-                    if (result.chart.error) {
-                        throw new Error(result.chart.error.description || `Erro para ${apiSymbol}`);
-                    }
-                    
-                    const meta = result.chart.result[0].meta;
-                    return { 
-                        price: meta.regularMarketPrice, 
-                        previousClose: meta.previousClose,
-                        marketState: meta.marketState 
-                    };
-
-                } catch (error) {
-                    console.error(`Falha ao buscar preço para ${apiSymbol} (tentativa ${i + 1}):`, error);
-                    if (i < retries - 1) {
-                        ratioCalcStatus.textContent = translations[currentLanguage].statusFailTicker.replace('{0}', apiSymbol);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                    } else {
-                        ratioCalcStatus.textContent = `Falha definitiva ao buscar ${apiSymbol}.`;
-                        return null; 
-                    }
-                }
-            }
-            return null;
-        }
-
-
-        async function performRatioCalculation(refSymbolKey, tickersToUpdate) {
-            ratioCalcStatus.textContent = translations[currentLanguage].statusFetching;
-            
-            const refData = await fetchPrice(tickerMapping[refSymbolKey]);
-             if (!refData) {
-                ratioCalcStatus.textContent = translations[currentLanguage].statusFailRef.replace('{0}', refSymbolKey);
-                return false;
-            }
-
-            for (const ticker of tickersToUpdate) {
-                const item = ratiosInputContainer.querySelector(`[data-ticker="${ticker}"]`)?.closest('.ratio-item-label');
-                if (!item) continue;
-                
-                const checkbox = item.querySelector('input[type="checkbox"]');
-                const input = item.querySelector('input[type="number"]');
-                const apiSymbol = tickerMapping[ticker];
-
-                if (apiSymbol) {
-                    ratioCalcStatus.textContent = `Buscando preço para ${apiSymbol}...`;
-                    const data = await fetchPrice(apiSymbol);
-                    if (data) {
-                        const refMarketOpen = refData.marketState === 'REGULAR';
-                        const targetMarketOpen = data.marketState === 'REGULAR';
-                        
-                        let priceType;
-                        if (refMarketOpen && targetMarketOpen) {
-                            priceType = 'current';
-                        } else {
-                            priceType = 'previousClose';
-                        }
-                        
-                        const refPrice = (priceType === 'previousClose') ? refData.previousClose : refData.price;
-                        const price = (priceType === 'previousClose') ? data.previousClose : data.price;
-
-                        if (price && price > 0) {
-                            const calculatedRatio = refPrice / price;
-                            input.value = calculatedRatio.toFixed(8);
-                            checkbox.checked = true;
-                            input.disabled = false;
-                        } else {
-                            ratioCalcStatus.textContent = translations[currentLanguage].statusInvalidPrice.replace('{0}', ticker);
-                            return false;
-                        }
-                    } else {
-                        ratioCalcStatus.textContent = translations[currentLanguage].statusFailTicker.replace('{0}', ticker);
-                        return false;
-                    }
-                }
-            }
-             return true; 
-        }
-
-        calculateAllRatiosButton.addEventListener('click', async () => {
-            const tickersSet = new Set(uniqueTickers);
-            const hasEsTickers = tickersSet.has('$SPX:') || tickersSet.has('$SPY:');
-            const hasNqTickers = tickersSet.has('$NDX:') || tickersSet.has('$QQQ:');
-            const hasGldTicker = tickersSet.has('$GLD:');
-            
-            calculateAllRatiosButton.disabled = true;
-            
-            if (hasEsTickers) {
-                const success = await performRatioCalculation('ref_es', ['$SPX:', '$SPY:']);
-                if (!success) {
-                    calculateAllRatiosButton.disabled = false;
-                    return;
-                }
-            }
-            if (hasNqTickers) {
-                const success = await performRatioCalculation('ref_nq', ['$NDX:', '$QQQ:']);
-                if (!success) {
-                    calculateAllRatiosButton.disabled = false;
-                    return;
-                }
-            }
-            if (hasGldTicker) {
-                const success = await performRatioCalculation('ref_gc', ['$GLD:']);
-                 if (!success) {
-                    calculateAllRatiosButton.disabled = false;
-                    return;
-                }
-            }
-            
-            ratioCalcStatus.textContent = translations[currentLanguage].statusDone;
-            setTimeout(() => {
-                ratioCalcStatus.textContent = '';
-                calculateAllRatiosButton.disabled = false;
-            }, 3000);
-        });
-
-    });
+        // --- Carga Inicial ---
+        window.addEventListener('load', runUpdate);
     </script>
-
 </body>
 </html>
