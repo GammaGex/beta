@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEX Dashboard v9</title>
+    <title>GEX Dashboard v11</title>
     <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.2.1/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 
     <style>
         :root {
@@ -54,6 +56,8 @@
             padding: 15px 20px;
             display: flex;
             flex-direction: column;
+            max-height: 100%;
+            overflow-y: auto;
         }
 
         h3 {
@@ -68,7 +72,6 @@
             font-weight: 500;
         }
 
-        /* --- Estilos do Menu Lateral --- */
         .sidebar-header {
             display: flex;
             justify-content: space-between;
@@ -120,7 +123,8 @@
             transition: background-color 0.3s, border-color 0.3s;
             font-size: 0.95em;
         }
-        .sidebar .date-buttons button.active, .sidebar .date-buttons button:hover {
+        .sidebar .date-buttons button.active, 
+        .sidebar .date-buttons button:hover {
             background-color: var(--accent-blue);
             border-color: var(--accent-blue);
         }
@@ -140,9 +144,6 @@
             margin-top: auto;
             padding-top: 15px;
             border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
         .playback-controls { display: flex; gap: 15px; align-items: center; }
         .playback-controls svg { fill: var(--text-secondary); width: 22px; height: 22px; cursor: pointer; }
@@ -159,7 +160,7 @@
             top: 0;
             left: 0;
             right: 0;
-            bottom: 30px; /* Espaço para a linha do tempo */
+            bottom: 30px; 
         }
 
         .timeline-container {
@@ -297,20 +298,10 @@
             }
         }
         
-        /**
-         * Cria uma URL de proxy usando um serviço robusto para contornar problemas de CORS.
-         * @param {string} targetUrl A URL da API que se pretende aceder.
-         * @returns {string} A URL completa do proxy.
-         */
         function createProxiedUrl(targetUrl) {
             return `https://api.codetabs.com/v1/proxy/?quest=${targetUrl}`;
         }
 
-        /**
-         * Faz o fetch através do proxy e processa a resposta.
-         * @param {string} proxiedUrl A URL do proxy já criada.
-         * @returns {Promise<any>} Uma promessa que resolve com os dados JSON da API de destino.
-         */
         async function fetchAndParseProxied(proxiedUrl) {
             const response = await fetch(proxiedUrl);
             if (!response.ok) {
@@ -330,19 +321,20 @@
             setStatus(`Carregando dados para ${ticker.toUpperCase()}...`, true);
 
             const baseApiUrl = `https://api.gexbot.com/${ticker.toUpperCase()}/classic/${currentPeriod}`;
-            const majorsUrl = createProxiedUrl(`${baseApiUrl}/majors?key=${apiKey}`);
-            const maxChangeUrl = createProxiedUrl(`${baseApiUrl}/maxchange?key=${apiKey}`);
-            const fullChainUrl = createProxiedUrl(`${baseApiUrl}?key=${apiKey}`);
+            
+            const urlsToFetch = [
+                createProxiedUrl(`${baseApiUrl}/majors?key=${apiKey}`),
+                createProxiedUrl(`${baseApiUrl}/maxchange?key=${apiKey}`),
+                createProxiedUrl(`${baseApiUrl}?key=${apiKey}`)
+            ];
 
             try {
-                const [majorsData, maxChangeData, fullChainData] = await Promise.all([
-                    fetchAndParseProxied(majorsUrl),
-                    fetchAndParseProxied(maxChangeUrl),
-                    fetchAndParseProxied(fullChainUrl)
-                ]);
+                const [majorsData, maxChangeData, fullChainData] = await Promise.all(
+                    urlsToFetch.map(fetchAndParseProxied)
+                );
                 
                 updateSidebar(majorsData, maxChangeData);
-                drawGexProfileChart(fullChainData, majorsData);
+                drawGexProfileChart(fullChainData, majorsData); 
                 
                 setStatus(null);
 
@@ -362,22 +354,28 @@
 
             document.getElementById('spot_price').textContent = formatNumber(majors.spot, 2);
             document.getElementById('zero_gamma').textContent = formatNumber(majors.zero_gamma, 2);
+            
+            // Seção de Volume
             document.getElementById('mpos_oi').textContent = formatNumber(majors.mpos_oi, 2);
             document.getElementById('mneg_oi').textContent = formatNumber(majors.mneg_oi, 2);
-            document.getElementById('oi_mpos').textContent = formatNumber(majors.oi_mpos, 2);
-            document.getElementById('oi_mneg').textContent = formatNumber(majors.oi_mneg, 2);
-
             const netGexVolEl = document.getElementById('net_gex_vol');
             netGexVolEl.textContent = formatNumber(majors.net_gex_vol, 4);
-            netGexVolEl.className = `value ${majors.net_gex_vol > 0 ? 'positive' : 'negative'}`;
-            
+            if (typeof majors.net_gex_vol === 'number') {
+                netGexVolEl.className = `value ${majors.net_gex_vol > 0 ? 'positive' : 'negative'}`;
+            }
+
+            // Seção de Open Interest
+            document.getElementById('oi_mpos').textContent = formatNumber(majors.oi_mpos, 2);
+            document.getElementById('oi_mneg').textContent = formatNumber(majors.oi_mneg, 2);
             const netGexOiEl = document.getElementById('net_gex_oi');
             netGexOiEl.textContent = formatNumber(majors.net_gex_oi, 4);
-            netGexOiEl.className = `value ${majors.net_gex_oi > 0 ? 'positive' : 'negative'}`;
+            if (typeof majors.net_gex_oi === 'number') {
+                 netGexOiEl.className = `value ${majors.net_gex_oi > 0 ? 'positive' : 'negative'}`;
+            }
+
 
             const maxChangeListEl = document.getElementById("maxChangeList");
             maxChangeListEl.innerHTML = '';
-            // CORREÇÃO: Adicionando os intervalos de 15 e 30 minutos
             const intervals = {'one':'1 min', 'five':'5 min', 'ten':'10 min', 'fifteen': '15 min', 'thirty': '30 min'};
             for(const key in intervals) {
                 const data = maxChange[key];
@@ -395,30 +393,29 @@
         // --- Função do Gráfico ---
         function drawGexProfileChart(fullChainData, annotationValues) {
             if (myGexChart) myGexChart.destroy();
-            const chartData = fullChainData.strikes.map(s => ({ x: s[1], y: s[0] }));
+            
+            const datasets = [];
+
+            datasets.push({
+                label: 'GEX Atual',
+                data: fullChainData.strikes.map(s => ({ x: s[1], y: s[0] })),
+                backgroundColor: (c) => c.raw.x >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)',
+                borderColor: (c) => c.raw.x >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)',
+                borderWidth: 1, 
+                barPercentage: 1.0, 
+                categoryPercentage: 1.0,
+            });
+
             const ctx = document.getElementById('gexChart').getContext('2d');
             myGexChart = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    datasets: [{
-                        data: chartData,
-                        backgroundColor: (c) => c.raw.x >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)',
-                        borderColor: (c) => c.raw.x >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)',
-                        borderWidth: 1, barPercentage: 1.0, categoryPercentage: 1.0
-                    }]
-                },
+                data: { datasets: datasets },
                 options: {
                     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                     scales: {
                         x: { 
                             position: 'top', 
-                            ticks: { 
-                                color: '#FFFFFF', 
-                                callback: (v) => {
-                                    if (typeof v !== 'number') return '';
-                                    return v.toFixed(0);
-                                }
-                            }, 
+                            ticks: { color: '#FFFFFF', callback: (v) => v.toFixed(0) }, 
                             grid: { color: 'rgba(255, 255, 255, 0.1)' } 
                         },
                         y: { 
@@ -429,12 +426,47 @@
                     },
                     plugins: {
                         legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    if (tooltipItems.length > 0) {
+                                        return `Strike: ${formatNumber(tooltipItems[0].parsed.y)}`;
+                                    }
+                                    return '';
+                                },
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.x !== null) {
+                                        label += `GEX ${formatNumber(context.parsed.x, 0)}`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        },
                         annotation: {
                             annotations: {
                                 zero_gamma_line: { type: 'line', yMin: annotationValues.zero_gamma, yMax: annotationValues.zero_gamma, borderColor: '#f0b90b', borderWidth: 2, label: { content: `${formatNumber(annotationValues.zero_gamma)}`, enabled: true, position: 'end', backgroundColor: '#f0b90b', color: '#000', font: { weight: 'bold' } } },
                                 mpos_oi_line: { type: 'line', yMin: annotationValues.mpos_oi, yMax: annotationValues.mpos_oi, borderColor: '#28a745', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(annotationValues.mpos_oi)}`, enabled: true, position: 'start', backgroundColor: '#28a745', font: { weight: 'bold' } } },
                                 mneg_oi_line: { type: 'line', yMin: annotationValues.mneg_oi, yMax: annotationValues.mneg_oi, borderColor: '#dc3545', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(annotationValues.mneg_oi)}`, enabled: true, position: 'start', backgroundColor: '#dc3545', font: { weight: 'bold' } } },
                                 spot_line: { type: 'line', yMin: annotationValues.spot, yMax: annotationValues.spot, borderColor: '#FFFFFF', borderWidth: 1.5 }
+                            }
+                        },
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'xy',
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: true,
+                                },
+                                pinch: {
+                                    enabled: true
+                                },
+                                mode: 'xy',
                             }
                         }
                     }
@@ -451,6 +483,7 @@
                 runUpdate();
             }
         });
+
         tickerInput.addEventListener('change', runUpdate);
         
         // --- Carga Inicial ---
