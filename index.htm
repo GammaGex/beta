@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEX Dashboard v17</title>
+    <title>GEX Dashboard v18</title>
     <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -231,6 +231,7 @@
         
         let currentPeriod = 'zero';
         let myGexChart = null;
+        let updateInterval = null;
         
         function formatNumber(num, fractionDigits = 2) {
             if (typeof num !== 'number') return '-';
@@ -266,13 +267,15 @@
             return response.json();
         }
 
-        async function runUpdate() {
+        async function runUpdate(isSilent = false) {
             const ticker = tickerSelect.value;
             if (!ticker) {
                 setStatus("Por favor, selecione um ticker.", true);
                 return;
             }
-            setStatus(`Carregando dados para ${ticker.toUpperCase()}...`, true);
+            if (!isSilent) {
+                setStatus(`Carregando dados para ${ticker.toUpperCase()}...`, true);
+            }
 
             const baseApiUrl = `https://api.gexbot.com/${ticker.toUpperCase()}/classic/${currentPeriod}`;
             const fullChainUrl = createProxiedUrl(`${baseApiUrl}?key=${apiKey}`);
@@ -283,11 +286,15 @@
                 updateSidebar(fullData);
                 drawGexProfileChart(fullData); 
                 
-                setStatus(null);
+                if (!isSilent) {
+                    setStatus(null);
+                }
 
             } catch (error) {
                 console.error("Falha ao atualizar dados:", error);
-                setStatus(`Erro ao carregar: ${error.message}.`, true);
+                if (!isSilent) {
+                    setStatus(`Erro ao carregar: ${error.message}.`, true);
+                }
             }
         }
         
@@ -333,18 +340,13 @@
         }
 
         function drawGexProfileChart(fullData) {
-            if (myGexChart) myGexChart.destroy();
-            
             const chartData = fullData.strikes.map(s => ({ x: s[1], y: s[0] }));
-
             const xValues = chartData.map(d => d.x);
             const maxAbsValue = Math.max(...xValues.map(v => Math.abs(v)));
             const padding = maxAbsValue * 0.1;
             const axisLimit = maxAbsValue + padding;
-
-            const datasets = [];
-
-            datasets.push({
+            
+            const datasets = [{
                 label: 'GEX Atual (Vol)',
                 data: chartData,
                 backgroundColor: (c) => c.raw.x >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)',
@@ -352,76 +354,97 @@
                 borderWidth: 1, 
                 barPercentage: 1.0, 
                 categoryPercentage: 1.0,
-            });
+            }];
 
-            const ctx = document.getElementById('gexChart').getContext('2d');
-            myGexChart = new Chart(ctx, {
-                type: 'bar',
-                data: { datasets: datasets },
-                options: {
-                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        x: { 
-                            position: 'top', 
-                            ticks: { color: '#FFFFFF' }, 
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                            min: -axisLimit,
-                            max: axisLimit
+            const annotationOptions = {
+                zero_gamma_line: { type: 'line', yMin: fullData.zero_gamma, yMax: fullData.zero_gamma, borderColor: '#f0b90b', borderWidth: 2, label: { content: `${formatNumber(fullData.zero_gamma)}`, enabled: true, position: 'end', backgroundColor: '#f0b90b', color: '#000', font: { weight: 'bold' } } },
+                major_pos_vol_line: { type: 'line', yMin: fullData.major_pos_vol, yMax: fullData.major_pos_vol, borderColor: '#28a745', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_pos_vol)}`, enabled: true, position: 'start', backgroundColor: '#28a745', font: { weight: 'bold' } } },
+                major_neg_vol_line: { type: 'line', yMin: fullData.major_neg_vol, yMax: fullData.major_neg_vol, borderColor: '#dc3545', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_neg_vol)}`, enabled: true, position: 'start', backgroundColor: '#dc3545', font: { weight: 'bold' } } },
+                spot_line: { type: 'line', yMin: fullData.spot, yMax: fullData.spot, borderColor: '#FFFFFF', borderWidth: 1.5 }
+            };
+
+
+            if (myGexChart) {
+                myGexChart.data.datasets = datasets;
+                myGexChart.options.scales.x.min = -axisLimit;
+                myGexChart.options.scales.x.max = axisLimit;
+                myGexChart.options.plugins.annotation.annotations = annotationOptions;
+                myGexChart.update('none'); // 'none' para evitar animações na atualização
+            } else {
+                const ctx = document.getElementById('gexChart').getContext('2d');
+                myGexChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { datasets: datasets },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        animation: {
+                            duration: 0 // Desativa a animação inicial
                         },
-                        y: { 
-                            type: 'linear', 
-                            ticks: { color: '#FFFFFF', stepSize: 25 }, 
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' } 
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                title: function(tooltipItems) {
-                                    if (tooltipItems.length > 0) {
-                                        return `Strike: ${formatNumber(tooltipItems[0].parsed.y)}`;
+                        scales: {
+                            x: { 
+                                position: 'top', 
+                                ticks: { color: '#FFFFFF' }, 
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                min: -axisLimit,
+                                max: axisLimit
+                            },
+                            y: { 
+                                type: 'linear', 
+                                ticks: { color: '#FFFFFF', stepSize: 25 }, 
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' } 
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(tooltipItems) {
+                                        if (tooltipItems.length > 0) {
+                                            return `Strike: ${formatNumber(tooltipItems[0].parsed.y)}`;
+                                        }
+                                        return '';
+                                    },
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.x !== null) {
+                                            label += `GEX ${formatNumber(context.parsed.x, 0)}`;
+                                        }
+                                        return label;
                                     }
-                                    return '';
-                                },
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.x !== null) {
-                                        label += `GEX ${formatNumber(context.parsed.x, 0)}`;
-                                    }
-                                    return label;
                                 }
-                            }
-                        },
-                        annotation: {
-                            annotations: {
-                                zero_gamma_line: { type: 'line', yMin: fullData.zero_gamma, yMax: fullData.zero_gamma, borderColor: '#f0b90b', borderWidth: 2, label: { content: `${formatNumber(fullData.zero_gamma)}`, enabled: true, position: 'end', backgroundColor: '#f0b90b', color: '#000', font: { weight: 'bold' } } },
-                                major_pos_vol_line: { type: 'line', yMin: fullData.major_pos_vol, yMax: fullData.major_pos_vol, borderColor: '#28a745', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_pos_vol)}`, enabled: true, position: 'start', backgroundColor: '#28a745', font: { weight: 'bold' } } },
-                                major_neg_vol_line: { type: 'line', yMin: fullData.major_neg_vol, yMax: fullData.major_neg_vol, borderColor: '#dc3545', borderWidth: 2, borderDash: [6, 6], label: { content: `${formatNumber(fullData.major_neg_vol)}`, enabled: true, position: 'start', backgroundColor: '#dc3545', font: { weight: 'bold' } } },
-                                spot_line: { type: 'line', yMin: fullData.spot, yMax: fullData.spot, borderColor: '#FFFFFF', borderWidth: 1.5 }
-                            }
-                        },
-                        zoom: {
-                            pan: {
-                                enabled: true,
-                                mode: 'xy',
+                            },
+                            annotation: {
+                                annotations: annotationOptions
                             },
                             zoom: {
-                                wheel: {
+                                pan: {
                                     enabled: true,
+                                    mode: 'xy',
                                 },
-                                pinch: {
-                                    enabled: true
-                                },
-                                mode: 'xy',
+                                zoom: {
+                                    wheel: {
+                                        enabled: true,
+                                    },
+                                    pinch: {
+                                        enabled: true
+                                    },
+                                    mode: 'xy',
+                                }
                             }
                         }
                     }
-                }
-            });
+                });
+            }
+        }
+        
+        function startAutoUpdate() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            updateInterval = setInterval(() => runUpdate(true), 5000); 
         }
 
         periodButtons.addEventListener('click', (e) => {
@@ -435,7 +458,10 @@
 
         tickerSelect.addEventListener('change', runUpdate);
         
-        window.addEventListener('load', runUpdate);
+        window.addEventListener('load', () => {
+            runUpdate(); 
+            startAutoUpdate();
+        });
     </script>
 </body>
 </html>
