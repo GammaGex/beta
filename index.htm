@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GEX Dashboard v13</title>
-    <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.2.1/chartjs-plugin-annotation.min.js"></script>
@@ -334,12 +333,18 @@
             const intervals = {'one':'1 min', 'five':'5 min', 'ten':'10 min', 'fifteen': '15 min', 'thirty': '30 min'};
             for(const key in intervals) {
                 const data = maxChange[key];
-                if(data) {
+                if(data && data[1] !== 0) { // CORREÇÃO: Verifica se o dado existe e se não é zero
                     const valueClass = data[1] > 0 ? 'positive' : 'negative';
                     maxChangeListEl.innerHTML += `
                         <div class="info-item">
                             <span class="label">${intervals[key]}</span>
                             <span class="value">${formatNumber(data[0])} <span class="${valueClass}">${formatBillions(data[1])}</span></span>
+                        </div>`;
+                } else {
+                     maxChangeListEl.innerHTML += `
+                        <div class="info-item">
+                            <span class="label">${intervals[key]}</span>
+                            <span class="value">N/A</span>
                         </div>`;
                 }
             }
@@ -351,10 +356,9 @@
             
             const chartData = fullChainData.strikes.map(s => ({ x: s[1], y: s[0] }));
 
-            // Calcula o limite do eixo para centralizar o gráfico
             const xValues = chartData.map(d => d.x);
             const maxAbsValue = Math.max(...xValues.map(v => Math.abs(v)));
-            const padding = maxAbsValue * 0.1; // Adiciona 10% de padding
+            const padding = maxAbsValue * 0.1; 
             const axisLimit = maxAbsValue + padding;
 
             const datasets = [];
@@ -380,8 +384,8 @@
                             position: 'top', 
                             ticks: { color: '#FFFFFF', callback: (v) => v.toFixed(0) }, 
                             grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                            min: -axisLimit, // Centraliza o gráfico
-                            max: axisLimit   // Centraliza o gráfico
+                            min: -axisLimit, 
+                            max: axisLimit   
                         },
                         y: { 
                             type: 'linear', 
