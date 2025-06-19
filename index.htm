@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEX Dashboard v16</title>
+    <title>GEX Dashboard v17</title>
     <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -337,7 +337,6 @@
             
             const chartData = fullData.strikes.map(s => ({ x: s[1], y: s[0] }));
 
-            // CORREÇÃO: Lógica para centralizar o gráfico
             const xValues = chartData.map(d => d.x);
             const maxAbsValue = Math.max(...xValues.map(v => Math.abs(v)));
             const padding = maxAbsValue * 0.1;
@@ -366,8 +365,8 @@
                             position: 'top', 
                             ticks: { color: '#FFFFFF' }, 
                             grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                            min: -axisLimit, // Define o mínimo do eixo
-                            max: axisLimit   // Define o máximo do eixo
+                            min: -axisLimit,
+                            max: axisLimit
                         },
                         y: { 
                             type: 'linear', 
