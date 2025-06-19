@@ -349,11 +349,19 @@
         function drawGexProfileChart(fullChainData, annotationValues) {
             if (myGexChart) myGexChart.destroy();
             
+            const chartData = fullChainData.strikes.map(s => ({ x: s[1], y: s[0] }));
+
+            // Calcula o limite do eixo para centralizar o gráfico
+            const xValues = chartData.map(d => d.x);
+            const maxAbsValue = Math.max(...xValues.map(v => Math.abs(v)));
+            const padding = maxAbsValue * 0.1; // Adiciona 10% de padding
+            const axisLimit = maxAbsValue + padding;
+
             const datasets = [];
 
             datasets.push({
                 label: 'GEX Atual',
-                data: fullChainData.strikes.map(s => ({ x: s[1], y: s[0] })),
+                data: chartData,
                 backgroundColor: (c) => c.raw.x >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)',
                 borderColor: (c) => c.raw.x >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)',
                 borderWidth: 1, 
@@ -371,7 +379,9 @@
                         x: { 
                             position: 'top', 
                             ticks: { color: '#FFFFFF', callback: (v) => v.toFixed(0) }, 
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' } 
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            min: -axisLimit, // Centraliza o gráfico
+                            max: axisLimit   // Centraliza o gráfico
                         },
                         y: { 
                             type: 'linear', 
