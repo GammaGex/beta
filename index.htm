@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processador de Dados</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .bg-slate-800-contrast {
+            background-color: #1e293b;
+        }
+        .text-slate-200-contrast {
+            color: #e2e8f0;
+        }
+        .placeholder-slate-500-contrast::placeholder {
+            color: #64748b;
+        }
+        #fieldsCheckboxesContainer, #ratiosInputContainer, #txtConfigContainer {
+            max-height: 150px; 
+            overflow-y: auto;
+            border: 1px solid #334155; 
+            padding: 0.75rem; 
+            border-radius: 0.5rem; 
+            background-color: #334155; 
+        }
+        .checkbox-label {
+            display: block; 
+            margin-bottom: 0.5rem; 
+            color: #cbd5e1; 
+            cursor: pointer;
+        }
+        .checkbox-label input[type="checkbox"] {
+            margin-right: 0.5rem;
+            accent-color: #0ea5e9; 
+        }
+        
+        .ratio-item-label, .txt-config-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem; 
+            color: #cbd5e1; 
+        }
+        .ratio-item-label input[type="checkbox"], .txt-config-item .original-field-name {
+            margin-right: 0.75rem;
+            accent-color: #0ea5e9;
+            flex-shrink: 0;
+        }
+        .ratio-item-label .ratio-ticker-name, .txt-config-item .original-field-name {
+            width: 130px; 
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.875rem;
+        }
+         .txt-config-item .original-field-name {
+            font-weight: 500;
+         }
+
+        .ratio-item-label input[type="number"], 
+        .txt-config-item input[type="text"], 
+        .txt-config-item .txt-num-input {
+            width: 150px; 
+            padding: 0.35rem 0.5rem;
+            border-radius: 0.25rem;
+            background-color: #475569; 
+            color: #e2e8f0; 
+            border: 1px solid #64748b; 
+            flex-shrink: 0;
+            font-size: 0.875rem;
+            margin-right: 0.5rem;
+        }
+        .txt-config-item .txt-num-input {
+             width: 100px;
+        }
+        .ratio-item-label input[type="number"]:disabled {
+            background-color: #334155;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+        .config-button { 
+            background-color: #6366f1; 
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        .config-button:hover {
+            background-color: #4f46e5; 
+        }
+        #fileUploadConfig {
+            display: none; 
+        }
+        .auto-ratio-section {
+            border-top: 1px solid #475569;
+            margin-top: 1rem;
+            padding-top: 1rem;
+        }
+        .calc-button:disabled {
+            background-color: #475569;
+            cursor: not-allowed;
+        }
+        .lang-button {
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        .lang-button.active {
+            opacity: 1;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(14, 165, 233, 0.7);
+            border-radius: 50%;
+        }
+
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-900 text-slate-100 flex flex-col items-center justify-center min-h-screen p-4 selection:bg-sky-500 selection:text-white">
+
+    <!-- Tela de Login -->
+    <div id="loginOverlay" class="fixed inset-0 bg-slate-900 bg-opacity-95 flex items-center justify-center z-50">
+        <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-sm relative">
+            <!-- Seletor de Idioma -->
+            <div class="absolute top-4 right-4 flex gap-3">
+                <button data-lang="pt" class="lang-button">
+                    <img src="https://flagcdn.com/w20/br.png" alt="Português">
+                </button>
+                <button data-lang="en" class="lang-button">
+                    <img src="https://flagcdn.com/w20/us.png" alt="English">
+                </button>
+            </div>
+            <h2 class="text-2xl font-bold text-sky-400 text-center mb-6" data-i18n-key="loginTitle">Login</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-slate-300 mb-1" data-i18n-key="usernameLabel">Usuário</label>
+                    <input type="text" id="username" class="w-full p-3 bg-slate-700 text-slate-200 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-slate-300 mb-1" data-i18n-key="passwordLabel">Senha</label>
+                    <input type="password" id="password" class="w-full p-3 bg-slate-700 text-slate-200 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                </div>
+            </div>
+            <p id="loginError" class="text-red-400 text-sm text-center h-5 mt-4"></p>
+            <button id="loginButton" class="w-full mt-4 bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 rounded-lg shadow-md transform hover:scale-105 transition-all" data-i18n-key="loginButton">Entrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação para Deletar Arquivos Antigos -->
+    <div id="confirmDeleteModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-80 flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-lg text-center">
+            <h2 class="text-3xl font-bold text-red-500 mb-4" data-i18n-key="attention">ATENÇÃO!</h2>
+            <p class="text-lg text-slate-200 mb-2" data-i18n-key="deleteWarning">
+                É essencial <strong class="font-bold text-yellow-300" data-i18n-key="delete">DELETAR OS ARQUIVOS ANTIGOS</strong> da pasta antes de fazer o download dos novos.
+            </p>
+            <p class="text-sm text-slate-400 mb-8" data-i18n-key="deleteReason">
+                Isso garante que seu programa de plotagem leia apenas os dados mais recentes, evitando erros.
+            </p>
+            <div class="flex justify-center gap-4">
+                <button id="cancelDownloadButton" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition-all" data-i18n-key="cancel">Cancelar</button>
+                <button id="confirmDownloadButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all" data-i18n-key="confirmDelete">Sim, já deletei. Prosseguir.</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Container Principal do Aplicativo (inicialmente oculto) -->
+    <div id="appContainer" class="hidden bg-slate-800-contrast p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
+        <header class="mb-6 sm:mb-8 text-center">
+            <h1 class="text-2xl sm:text-3xl font-bold text-sky-400" data-i18n-key="appTitle">Processador de Dados Gex</h1>
+            <p class="text-sm text-slate-400 mt-1" data-i18n-key="appSubtitle">Cole os dados, analise, defina ratios, configure e gere arquivos TXT.</p>
+        </header>
+
+        <main>
+            <div class="mb-6 p-4 bg-slate-700 rounded-lg">
+                <h2 class="text-lg font-semibold text-sky-300 mb-3 text-center" data-i18n-key="configTitle">Gerenciamento de Configurações</h2>
+                <div class="flex flex-col sm:flex-row justify-center items-center gap-3">
+                    <button id="loadConfigButton" class="config-button text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all w-full sm:w-auto" data-i18n-key="loadConfig">Carregar Configurações</button>
+                    <input type="file" id="fileUploadConfig" accept=".json">
+                    <button id="saveConfigButton" class="config-button text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all w-full sm:w-auto" data-i18n-key="saveConfig">Salvar Configurações Atuais</button>
+                </div>
+                <p id="configStatusMessage" class="text-xs text-slate-400 mt-2 text-center"></p>
+            </div>
+
+            <div class="mb-4">
+                <label for="rawData" class="block text-sm font-medium text-slate-300 mb-1" data-i18n-key="rawDataLabel">Dados:</label>
+                <textarea id="rawData" rows="4" class="w-full p-3 bg-slate-700 text-slate-200-contrast border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 placeholder-slate-500-contrast"></textarea>
+            </div>
+
+            <div class="mb-4 text-center">
+                <button id="analyzeFieldsButton" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all" data-i18n-key="analyzeButton">Analisar Dados</button>
+            </div>
+            
+            <div id="fieldsSelectionSection" class="mb-4 hidden">
+                <label class="block text-sm font-medium text-slate-300 mb-2" data-i18n-key="step1Title">1. Selecione os campos que deseja manter:</label>
+                <div id="fieldsCheckboxesContainer"></div>
+                <!-- Botões Removidos -->
+            </div>
+
+            <div id="ratiosSection" class="mb-4 hidden">
+                <label class="block text-sm font-medium text-slate-300 mb-2" data-i18n-key="step2Title">2. Para aplicar ratio, marque o ativo e defina o valor:</label>
+                <div id="ratiosInputContainer"></div>
+                <div class="auto-ratio-section">
+                    <h3 class="text-base font-medium text-slate-200 mb-3 text-center" data-i18n-key="autoRatioTitle">Cálculo de Ratio Automático (Yahoo Finance)</h3>
+                    <div class="text-center">
+                        <button id="calculateAllRatiosButton" class="calc-button bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all" disabled data-i18n-key="calculateAllRatios">Calcular Todos os Ratios</button>
+                    </div>
+                     <p id="ratioCalcStatus" class="text-center text-xs text-yellow-300 h-4 mt-2"></p>
+                </div>
+            </div>
+
+            <div id="generateOutputButtonContainer" class="mb-4 text-center hidden">
+                <button id="generateOutputButton" class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transform hover:scale-105 transition-all" data-i18n-key="generateOutput">Gerar Saída Processada</button>
+            </div>
+
+            <div id="processedDataSection" class="mb-4 hidden">
+                <label for="processedData" class="block text-sm font-medium text-slate-300 mb-1" data-i18n-key="processedDataLabel">Dados Processados (Prévia):</label>
+                <textarea id="processedData" rows="4" class="w-full p-3 bg-slate-700 text-slate-200-contrast border border-slate-600 rounded-lg readonly" readonly></textarea>
+            </div>
+            
+            <div id="configureTxtButtonContainer" class="mb-4 text-center hidden">
+                <button id="configureTxtButton" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transform hover:scale-105 transition-all" data-i18n-key="configureTxt">Configurar e Gerar Arquivos TXT</button>
+            </div>
+
+            <div id="txtConfigurationSection" class="mb-4 hidden">
+                <label class="block text-sm font-medium text-slate-300 mb-2" data-i18n-key="step3Title">3. Configure os Nomes dos Campos para os Arquivos TXT:</label>
+                <div id="txtConfigContainer"></div>
+                 <div class="mt-3 text-center">
+                    <button id="downloadTxtFilesButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transform hover:scale-105 transition-all mr-2 mb-2" data-i18n-key="downloadIndividual">Baixar Arquivos TXT Individuais</button>
+                </div>
+            </div>
+            <div id="downloadLinksArea" class="mt-4 text-sm"></div>
+
+        </main>
+        <footer class="mt-8 text-center"><p class="text-xs text-slate-500" data-i18n-key="footer">Processador de Dados Gex</p></footer>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- INÍCIO DA SEÇÃO DE TRADUÇÃO (I18N) ---
+        const translations = {
+            en: {
+                loginTitle: "Login",
+                usernameLabel: "User",
+                passwordLabel: "Password",
+                loginButton: "Sign In",
+                loginError: "Invalid username or password.",
+                appTitle: "Gex Data Processor",
+                appSubtitle: "Paste data, analyze, set ratios, configure, and generate TXT files.",
+                configTitle: "Settings Management",
+                loadConfig: "Load Settings",
+                saveConfig: "Save Current Settings",
+                rawDataLabel: "Data:",
+                analyzeButton: "Analyze Data",
+                step1Title: "1. Select the fields to keep:",
+                selectAll: "Select All",
+                deselectAll: "Deselect All",
+                step2Title: "2. To apply a ratio, check the asset and set the value:",
+                autoRatioTitle: "Automatic Ratio Calculation (Yahoo Finance)",
+                calculateAllRatios: "Calculate All Ratios",
+                generateOutput: "Generate Processed Output",
+                processedDataLabel: "Processed Data (Preview):",
+                configureTxt: "Configure and Generate TXT Files",
+                step3Title: "3. Configure Field Names for TXT Files:",
+                downloadIndividual: "Download Individual TXT Files",
+                footer: "Gex Data Processor",
+                attention: "ATTENTION!",
+                deleteWarning: "It is essential to <strong class='font-bold text-yellow-300'>DELETE THE OLD FILES</strong> from the folder before downloading the new ones.",
+                deleteReason: "This ensures your plotting program reads only the latest data, avoiding errors.",
+                cancel: "Cancel",
+                confirmDelete: "Yes, I've deleted them. Proceed.",
+                configLoaded: `Configuration "{0}" loaded. Click "Analyze Data" to apply it.`,
+                configSaved: `Current settings saved to {0}`,
+                noValidData: "No valid data (ticker or field) found.",
+                noFieldsFound: "No data fields (e.g., Call Resistance, HVL) found, only tickers.",
+                noTickersForRatio: "No tickers available to set ratios (after exclusions).",
+                analysisDone: "Analysis complete. Define your settings.",
+                analysisDoneConfigLoaded: "Loaded configuration applied. For ratios, click the calculation button.",
+                noDataToProcess: "No data to process.",
+                noFieldsSelectedForTxt: "No fields were selected in Step 1 to configure for TXT.",
+                noDataForTxt: "No processed data to generate TXT files.",
+                noFilesGenerated: "No TXT files generated. Check settings and processed data.",
+                statusFetching: "Fetching prices...",
+                statusCalculatingVs: "Calculating vs {0}...",
+                statusDone: "All calculations complete!",
+                statusFailRef: "Failed to fetch reference price for {0}.",
+                statusFailTicker: "Failed to fetch price for {0}.",
+                statusInvalidPrice: "Invalid price for {0}."
+            },
+            pt: {
+                loginTitle: "Login",
+                usernameLabel: "Usuário",
+                passwordLabel: "Senha",
+                loginButton: "Entrar",
+                loginError: "Usuário ou senha inválidos.",
+                appTitle: "Processador de Dados Gex",
+                appSubtitle: "Cole os dados, analise, defina ratios, configure e gere arquivos TXT.",
+                configTitle: "Gerenciamento de Configurações",
+                loadConfig: "Carregar Configurações",
+                saveConfig: "Salvar Configurações Atuais",
+                rawDataLabel: "Dados:",
+                analyzeButton: "Analisar Dados",
+                step1Title: "1. Selecione os campos que deseja manter:",
+                selectAll: "Selecionar Todos",
+                deselectAll: "Desselecionar Todos",
+                step2Title: "2. Para aplicar ratio, marque o ativo e defina o valor:",
+                autoRatioTitle: "Cálculo de Ratio Automático (Yahoo Finance)",
+                calculateAllRatios: "Calcular Todos os Ratios",
+                generateOutput: "Gerar Saída Processada",
+                processedDataLabel: "Dados Processados (Prévia):",
+                configureTxt: "Configurar e Gerar Arquivos TXT",
+                step3Title: "3. Configure os Nomes dos Campos para os Arquivos TXT:",
+                downloadIndividual: "Baixar Arquivos TXT Individuais",
+                footer: "Processador de Dados Gex",
+                attention: "ATENÇÃO!",
+                deleteWarning: "É essencial <strong class='font-bold text-yellow-300'>DELETAR OS ARQUIVOS ANTIGOS</strong> da pasta antes de fazer o download dos novos.",
+                deleteReason: "Isso garante que seu programa de plotagem leia apenas os dados mais recentes, evitando erros.",
+                cancel: "Cancelar",
+                confirmDelete: "Sim, já deletei. Prosseguir.",
+                configLoaded: `Configuração "{0}" carregada. Clique em "Analisar Dados" para aplicá-la.`,
+                configSaved: `Configurações atuais salvas em {0}`,
+                noValidData: "Nenhum dado válido (ticker ou campo) encontrado.",
+                noFieldsFound: "Nenhum campo de dados (ex: Call Resistance, HVL) encontrado, apenas tickers.",
+                noTickersForRatio: "Nenhum ticker para definir ratios (após exclusões).",
+                analysisDone: "Análise concluída. Defina suas configurações.",
+                analysisDoneConfigLoaded: "Configuração carregada aplicada. Para os ratios, clique no botão de cálculo.",
+                noDataToProcess: "Nenhum dado para processar.",
+                noFieldsSelectedForTxt: "Nenhum campo foi selecionado na Etapa 1 para configurar para TXT.",
+                noDataForTxt: "Nenhum dado processado para gerar arquivos TXT.",
+                noFilesGenerated: "Nenhum arquivo TXT gerado. Verifique as configurações e os dados processados.",
+                statusFetching: "Buscando preços...",
+                statusCalculatingVs: "Calculando vs {0}...",
+                statusDone: "Todos os cálculos concluídos!",
+                statusFailRef: "Falha ao buscar preço de referência para {0}.",
+                statusFailTicker: "Falha ao buscar preço para {0}.",
+                statusInvalidPrice: "Preço inválido para {0}."
+            }
+        };
+
+        let currentLanguage = 'pt'; // Default language
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n-key]').forEach(element => {
+                const key = element.getAttribute('data-i18n-key');
+                if (translations[lang] && translations[lang][key]) {
+                    // Use innerHTML to allow for strong tags in translations
+                    element.innerHTML = translations[lang][key];
+                }
+            });
+             document.querySelectorAll('[data-i18n-placeholder-key]').forEach(element => {
+                const key = element.getAttribute('data-i18n-placeholder-key');
+                if (translations[lang] && translations[lang][key]) {
+                    element.placeholder = translations[lang][key];
+                }
+            });
+
+            // Update language switcher visual state
+            document.querySelectorAll('.lang-button').forEach(btn => {
+                if (btn.dataset.lang === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        document.querySelectorAll('.lang-button').forEach(button => {
+            button.addEventListener('click', () => {
+                setLanguage(button.dataset.lang);
+            });
+        });
+
+        // Initialize with default language
+        setLanguage('pt');
+        // --- FIM DA SEÇÃO DE TRADUÇÃO ---
+
+
+        // ---- INÍCIO DA SEÇÃO DE LOGIN ----
+        const loginOverlay = document.getElementById('loginOverlay');
+        const appContainer = document.getElementById('appContainer');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginButton = document.getElementById('loginButton');
+        const loginError = document.getElementById('loginError');
+
+        // --- Altere o usuário e a senha aqui ---
+        const correctUser = "GEX";
+        const correctPass = "GEX"; 
+
+        function attemptLogin() {
+            const user = usernameInput.value;
+            const pass = passwordInput.value;
+
+            if (user === correctUser && pass === correctPass) {
+                // Sucesso
+                loginOverlay.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+            } else {
+                // Falha
+                loginError.textContent = translations[currentLanguage].loginError;
+                setTimeout(() => {
+                    loginError.textContent = "";
+                }, 3000);
+            }
+        }
+
+        loginButton.addEventListener('click', attemptLogin);
+        passwordInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                attemptLogin();
+            }
+        });
+        // ---- FIM DA SEÇÃO DE LOGIN ----
+        
+        // ---- CÓDIGO DO APLICATIVO PRINCIPAL ----
+        const rawDataTextarea = document.getElementById('rawData');
+        const analyzeFieldsButton = document.getElementById('analyzeFieldsButton');
+        const fieldsSelectionSection = document.getElementById('fieldsSelectionSection');
+        const fieldsCheckboxesContainer = document.getElementById('fieldsCheckboxesContainer');
+        const selectAllFieldsButton = document.getElementById('selectAllFields');
+        const deselectAllFieldsButton = document.getElementById('deselectAllFields');
+        const ratiosSection = document.getElementById('ratiosSection');
+        const ratiosInputContainer = document.getElementById('ratiosInputContainer');
+        const generateOutputButtonContainer = document.getElementById('generateOutputButtonContainer');
+        const generateOutputButton = document.getElementById('generateOutputButton');
+        const processedDataSection = document.getElementById('processedDataSection');
+        const processedDataTextarea = document.getElementById('processedData');
+        const configureTxtButtonContainer = document.getElementById('configureTxtButtonContainer');
+        const configureTxtButton = document.getElementById('configureTxtButton');
+        const txtConfigurationSection = document.getElementById('txtConfigurationSection');
+        const txtConfigContainer = document.getElementById('txtConfigContainer');
+        const downloadTxtFilesButton = document.getElementById('downloadTxtFilesButton');
+        const downloadLinksArea = document.getElementById('downloadLinksArea');
+        const loadConfigButton = document.getElementById('loadConfigButton');
+        const saveConfigButton = document.getElementById('saveConfigButton');
+        const fileUploadConfig = document.getElementById('fileUploadConfig');
+        const configStatusMessage = document.getElementById('configStatusMessage');
+        const calculateAllRatiosButton = document.getElementById('calculateAllRatiosButton');
+        const ratioCalcStatus = document.getElementById('ratioCalcStatus');
+        const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+        const cancelDownloadButton = document.getElementById('cancelDownloadButton');
+        const confirmDownloadButton = document.getElementById('confirmDownloadButton');
+
+        let cachedCleanedLines = []; 
+        let originalFieldOrder = []; 
+        let uniqueTickers = []; 
+        let tickersForRatioDisplay = [];
+        let currentProcessedData = {}; 
+        let loadedConfiguration = null; 
+
+        // Restante do código...
+
+        function parseDataLine(line) {
+            const tickerEndIndex = line.indexOf(':');
+            if (tickerEndIndex === -1) return { ticker: line.trim(), fields: {}, lineFieldOrder: [] };
+            const ticker = line.substring(0, tickerEndIndex + 1).trim();
+            const dataPart = line.substring(tickerEndIndex + 1).trim();
+            const pairs = dataPart.split(',');
+            const fields = {};
+            const lineFieldOrder = [];
+            for (let i = 0; i < pairs.length; i += 2) {
+                const fieldName = pairs[i] ? pairs[i].trim() : null;
+                const fieldValue = pairs[i+1] ? pairs[i+1].trim() : null;
+                if (fieldName && fieldValue !== null) {
+                    fields[fieldName] = fieldValue;
+                    if (!lineFieldOrder.includes(fieldName)) lineFieldOrder.push(fieldName);
+                } else if (fieldName && fieldValue === null && i + 1 >= pairs.length) {
+                    fields[fieldName] = ""; 
+                    if (!lineFieldOrder.includes(fieldName)) lineFieldOrder.push(fieldName);
+                }
+            }
+            return { ticker, fields, lineFieldOrder };
+        }
+
+        function applyLoadedConfigStep1() {
+            if (loadedConfiguration && loadedConfiguration.selectedFieldsStep1) {
+                const allFieldCheckboxes = fieldsCheckboxesContainer.querySelectorAll('input[type="checkbox"]');
+                allFieldCheckboxes.forEach(cb => {
+                    cb.checked = loadedConfiguration.selectedFieldsStep1.includes(cb.value);
+                });
+            }
+        }
+        
+        function applyLoadedConfigStep3() {
+            if (loadedConfiguration && loadedConfiguration.txtConfigsStep3) {
+                txtConfigContainer.querySelectorAll('.txt-config-item').forEach(item => {
+                    const originalField = item.querySelector('input[type="text"]').dataset.originalField;
+                    const txtNameInput = item.querySelector('input[type="text"]');
+                    const txtNumInput = item.querySelector('.txt-num-input'); 
+
+                    if (loadedConfiguration.txtConfigsStep3[originalField]) {
+                        const config = loadedConfiguration.txtConfigsStep3[originalField];
+                        txtNameInput.value = config.txtName || originalField;
+                        txtNumInput.value = config.txtNum || ''; 
+                    } else { 
+                        txtNameInput.value = originalField;
+                        txtNumInput.value = ''; 
+                    }
+                });
+            } else { 
+                 txtConfigContainer.querySelectorAll('.txt-config-item .txt-num-input').forEach(input => {
+                    input.value = '';
+                });
+            }
+        }
+
+        analyzeFieldsButton.addEventListener('click', () => {
+            const inputText = rawDataTextarea.value;
+            const lines = inputText.split('\n');
+            cachedCleanedLines = [];
+            const allFields = new Set();
+            const fieldOrderMap = new Map();
+            const tickersSet = new Set();
+            
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('$')) {
+                    cachedCleanedLines.push(trimmedLine);
+                    const { ticker, fields, lineFieldOrder } = parseDataLine(trimmedLine);
+                    tickersSet.add(ticker); 
+
+                    lineFieldOrder.forEach(fieldName => {
+                        allFields.add(fieldName);
+                        if (!fieldOrderMap.has(fieldName)) fieldOrderMap.set(fieldName, fieldOrderMap.size);
+                    });
+                }
+            });
+
+            const hasEsTickers = tickersSet.has('$SPX:') || tickersSet.has('$SPY:');
+            const hasNqTickers = tickersSet.has('$NDX:') || tickersSet.has('$QQQ:');
+            const hasGldTicker = tickersSet.has('$GLD:');
+            calculateAllRatiosButton.disabled = !(hasEsTickers || hasNqTickers || hasGldTicker);
+            
+            originalFieldOrder = Array.from(allFields).sort((a, b) => (fieldOrderMap.get(a) || 0) - (fieldOrderMap.get(b) || 0));
+            uniqueTickers = Array.from(tickersSet);
+
+            const preferredTickerOrder = ['$SPX:', '$SPY:', '$GLD:']; 
+            uniqueTickers.sort((a, b) => {
+                const indexA = preferredTickerOrder.indexOf(a);
+                const indexB = preferredTickerOrder.indexOf(b);
+                if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                if (indexA !== -1) return -1;
+                if (indexB !== -1) return 1;
+                return a.localeCompare(b);
+            });
+
+            const excludedTickersForRatio = ['$ES1!:', '$NQ1!:', '$GC1!:'];
+            tickersForRatioDisplay = uniqueTickers.filter(ticker => !excludedTickersForRatio.includes(ticker));
+
+            fieldsCheckboxesContainer.innerHTML = ''; 
+            if (originalFieldOrder.length === 0 && uniqueTickers.length === 0) {
+                fieldsCheckboxesContainer.innerHTML = `<p class="text-slate-400 text-sm">${translations[currentLanguage].noValidData}</p>`;
+                fieldsSelectionSection.classList.remove('hidden');
+                ratiosSection.classList.add('hidden');
+                generateOutputButtonContainer.classList.add('hidden');
+                processedDataSection.classList.add('hidden');
+                configureTxtButtonContainer.classList.add('hidden');
+                txtConfigurationSection.classList.add('hidden');
+                configStatusMessage.textContent = translations[currentLanguage].analysisDoneConfigLoaded;
+                return;
+            }
+
+            if (originalFieldOrder.length > 0) {
+                originalFieldOrder.forEach(fieldName => {
+                    const checkboxId = `checkbox-field-${fieldName.replace(/\s+/g, '-')}`;
+                    const label = document.createElement('label');
+                    label.htmlFor = checkboxId;
+                    label.className = 'checkbox-label';
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = checkboxId;
+                    checkbox.value = fieldName;
+                    checkbox.checked = true; 
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(fieldName));
+                    fieldsCheckboxesContainer.appendChild(label);
+                });
+                applyLoadedConfigStep1(); 
+                fieldsSelectionSection.classList.remove('hidden');
+            } else {
+                 fieldsCheckboxesContainer.innerHTML = `<p class="text-slate-400 text-sm">${translations[currentLanguage].noFieldsFound}</p>`;
+                 fieldsSelectionSection.classList.remove('hidden');
+            }
+
+            ratiosInputContainer.innerHTML = '';
+            if (tickersForRatioDisplay.length > 0) {
+                tickersForRatioDisplay.forEach(tickerName => {
+                    const cleanTickerName = tickerName.replace(/[^a-zA-Z0-9!$]/g, ''); 
+                    const itemContainer = document.createElement('label'); 
+                    itemContainer.className = 'ratio-item-label';
+                    
+                    const ratioCheckbox = document.createElement('input');
+                    ratioCheckbox.type = 'checkbox';
+                    ratioCheckbox.id = `ratio-checkbox-${cleanTickerName}`;
+                    ratioCheckbox.dataset.ticker = tickerName;
+
+                    const tickerNameSpan = document.createElement('span');
+                    tickerNameSpan.className = 'ratio-ticker-name';
+                    tickerNameSpan.textContent = tickerName;
+                    
+                    const ratioInput = document.createElement('input');
+                    ratioInput.type = 'number';
+                    ratioInput.id = `ratio-input-${cleanTickerName}`;
+                    ratioInput.dataset.ticker = tickerName; 
+                    ratioInput.value = '1'; 
+                    ratioInput.step = 'any'; 
+                    ratioInput.disabled = true; 
+
+                    ratioCheckbox.addEventListener('change', (event) => {
+                        ratioInput.disabled = !event.target.checked;
+                        if (!event.target.checked) {
+                            ratioInput.value = '1'; 
+                        }
+                    });
+                    
+                    itemContainer.appendChild(ratioCheckbox);
+                    itemContainer.appendChild(tickerNameSpan);
+                    itemContainer.appendChild(ratioInput);
+                    ratiosInputContainer.appendChild(itemContainer);
+                });
+                ratiosSection.classList.remove('hidden');
+            } else {
+                 ratiosInputContainer.innerHTML = `<p class="text-slate-400 text-sm">${translations[currentLanguage].noTickersForRatio}</p>`;
+                 ratiosSection.classList.remove('hidden'); 
+            }
+            
+            if (originalFieldOrder.length > 0 || uniqueTickers.length > 0) {
+                 generateOutputButtonContainer.classList.remove('hidden');
+            } else {
+                generateOutputButtonContainer.classList.add('hidden');
+            }
+            processedDataSection.classList.add('hidden');
+            configureTxtButtonContainer.classList.add('hidden');
+            txtConfigurationSection.classList.add('hidden');
+            processedDataTextarea.value = '';
+            downloadLinksArea.innerHTML = '';
+            if(loadedConfiguration) {
+                configStatusMessage.textContent = translations[currentLanguage].analysisDoneConfigLoaded;
+            } else {
+                configStatusMessage.textContent = translations[currentLanguage].analysisDone;
+            }
+        });
+        
+        generateOutputButton.addEventListener('click', () => {
+            const selectedFields = Array.from(fieldsCheckboxesContainer.querySelectorAll('input[type="checkbox"]:checked'))
+                                      .map(cb => cb.value);
+            const tickerRatios = {};
+            ratiosInputContainer.querySelectorAll('.ratio-item-label').forEach(item => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                const input = item.querySelector('input[type="number"]');
+                const ticker = checkbox.dataset.ticker;
+                if (checkbox.checked) {
+                    const ratioValue = parseFloat(input.value);
+                    tickerRatios[ticker] = !isNaN(ratioValue) ? ratioValue : 1;
+                } else {
+                    tickerRatios[ticker] = 1; 
+                }
+            });
+            
+            const outputLines = [];
+            currentProcessedData = {}; 
+
+            cachedCleanedLines.forEach(line => {
+                const { ticker, fields } = parseDataLine(line); 
+                const assetRatio = tickerRatios[ticker] !== undefined ? tickerRatios[ticker] : 1; 
+                
+                if (!currentProcessedData[ticker]) {
+                    currentProcessedData[ticker] = {};
+                }
+
+                let outputForAssetPreview = ticker; 
+                let hasFieldsForThisAssetPreview = false;
+
+                originalFieldOrder.forEach(fieldName => {
+                    if (selectedFields.includes(fieldName) && fields.hasOwnProperty(fieldName)) {
+                        let originalFieldValue = fields[fieldName];
+                        let processedFieldValueForPreview = originalFieldValue; 
+                        
+                        const numericValue = parseFloat(originalFieldValue.replace(',', '.'));
+
+                        if (!isNaN(numericValue)) { 
+                            let valueForStorage = numericValue; 
+                            if (assetRatio !== 1) { 
+                                valueForStorage = numericValue * assetRatio;
+                            }
+                            processedFieldValueForPreview = valueForStorage.toFixed(2).replace('.', ',');
+                            currentProcessedData[ticker][fieldName] = valueForStorage; 
+                        } else {
+                             currentProcessedData[ticker][fieldName] = originalFieldValue; 
+                        }
+                        
+                        if (hasFieldsForThisAssetPreview) {
+                           outputForAssetPreview += ","; 
+                        }
+                        outputForAssetPreview += ` ${fieldName}, ${processedFieldValueForPreview}`; 
+                        hasFieldsForThisAssetPreview = true;
+                    }
+                });
+
+                if (hasFieldsForThisAssetPreview || (selectedFields.length === 0 && cachedCleanedLines.some(l => l.startsWith(ticker)))) {
+                     outputLines.push(outputForAssetPreview.trim());
+                }
+            });
+            
+            if (outputLines.length > 0) {
+                 processedDataTextarea.value = outputLines.join('\n\n');
+                 processedDataSection.classList.remove('hidden');
+                 configureTxtButtonContainer.classList.remove('hidden');
+                 txtConfigurationSection.classList.add('hidden'); 
+                 downloadLinksArea.innerHTML = ''; 
+            } else if (cachedCleanedLines.length > 0 && selectedFields.length === 0 ) {
+                 processedDataTextarea.value = cachedCleanedLines.join('\n\n'); 
+                 processedDataSection.classList.remove('hidden');
+                 configureTxtButtonContainer.classList.remove('hidden');
+                 txtConfigurationSection.classList.add('hidden');
+                 downloadLinksArea.innerHTML = '';
+            } else if (cachedCleanedLines.length > 0 && selectedFields.length > 0){
+                processedDataTextarea.value = translations[currentLanguage].noDataToProcess;
+                processedDataSection.classList.remove('hidden');
+                configureTxtButtonContainer.classList.add('hidden');
+                txtConfigurationSection.classList.add('hidden');
+            } else {
+                 processedDataTextarea.value = translations[currentLanguage].noDataToProcess;
+                 processedDataSection.classList.remove('hidden');
+                 configureTxtButtonContainer.classList.add('hidden');
+                 txtConfigurationSection.classList.add('hidden');
+            }
+        });
+
+        configureTxtButton.addEventListener('click', () => {
+            txtConfigContainer.innerHTML = ''; 
+            const selectedFieldsFromStep1 = Array.from(fieldsCheckboxesContainer.querySelectorAll('input[type="checkbox"]:checked'))
+                                               .map(cb => cb.value);
+
+            if (selectedFieldsFromStep1.length === 0) {
+                txtConfigContainer.innerHTML = `<p class="text-slate-400 text-sm">${translations[currentLanguage].noFieldsSelectedForTxt}</p>`;
+                txtConfigurationSection.classList.remove('hidden');
+                return;
+            }
+            
+            originalFieldOrder.forEach(fieldName => {
+                if (selectedFieldsFromStep1.includes(fieldName)) {
+                    const cleanFieldName = fieldName.replace(/\s+/g, '-');
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'txt-config-item items-center mb-2'; 
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'original-field-name';
+                    nameSpan.textContent = fieldName + ":";
+                    itemDiv.appendChild(nameSpan);
+
+                    const txtNameInput = document.createElement('input');
+                    txtNameInput.type = 'text';
+                    txtNameInput.placeholder = 'Nome no TXT (ex: Call Wall)';
+                    txtNameInput.dataset.originalField = fieldName;
+                    txtNameInput.id = `txt-name-${cleanFieldName}`;
+                    txtNameInput.value = fieldName; 
+                    itemDiv.appendChild(txtNameInput);
+
+                    const txtNumInput = document.createElement('input');
+                    txtNumInput.type = 'text'; 
+                    txtNumInput.placeholder = '# (Opc.)';
+                    txtNumInput.className = 'txt-num-input'; 
+                    txtNumInput.dataset.originalField = fieldName;
+                    txtNumInput.id = `txt-num-${cleanFieldName}`;
+                    txtNumInput.value = ''; 
+                    itemDiv.appendChild(txtNumInput);
+                    
+                    txtConfigContainer.appendChild(itemDiv);
+                }
+            });
+            applyLoadedConfigStep3(); 
+            txtConfigurationSection.classList.remove('hidden');
+            downloadLinksArea.innerHTML = ''; 
+        });
+        
+        function generateTxtContentForAsset(tickerWithColon, assetData, txtConfigs, formattedDate, originalFieldOrder) {
+            const baseFilename = tickerWithColon.replace(':', ''); 
+            const fieldSuffixForTxt = baseFilename.replace('$', '');    
+            
+            let txtContentForAsset = `${formattedDate}\n\n`;
+            const valueToFieldConfigsMap = new Map();
+            
+            originalFieldOrder.forEach(originalFieldName => {
+                if (assetData.hasOwnProperty(originalFieldName) && txtConfigs.hasOwnProperty(originalFieldName)) {
+                    let value = assetData[originalFieldName]; 
+                    if (typeof value === 'number') {
+                        value = value.toString().replace('.', ',');
+                    }
+                    if (!valueToFieldConfigsMap.has(value)) {
+                        valueToFieldConfigsMap.set(value, []);
+                    }
+                    valueToFieldConfigsMap.get(value).push(txtConfigs[originalFieldName]);
+                }
+            });
+
+            let hasContentForThisFile = false;
+            valueToFieldConfigsMap.forEach((configs, valueString) => {
+                const combinedName = configs.map(c => c.name).join(' / ');
+                let numPart = '# '; 
+                if (configs.length > 0 && configs[0].num) { 
+                    numPart = `#${configs[0].num} `; 
+                }
+
+                let finalFieldNameInTxt = combinedName;
+                if (!tickerWithColon.endsWith('1!:')) {
+                    finalFieldNameInTxt += `_${fieldSuffixForTxt}`;
+                }
+                
+                txtContentForAsset += `${valueString} ${numPart}"${finalFieldNameInTxt}"\n`;
+                hasContentForThisFile = true;
+            });
+            return hasContentForThisFile ? txtContentForAsset : null;
+        }
+
+        function triggerDownloads() {
+            downloadLinksArea.innerHTML = ''; 
+            const now = new Date();
+            let targetDate = new Date(now);
+            if (now.getHours() >= 19) {
+                targetDate.setDate(targetDate.getDate() + 1);
+            }
+
+            const day = String(targetDate.getDate()).padStart(2, '0');
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0'); 
+            const year = targetDate.getFullYear();
+            
+            let formattedDate;
+            if (currentLanguage === 'en') {
+                formattedDate = `${month}/${day}/${year}`;
+            } else {
+                formattedDate = `${day}/${month}/${year}`;
+            }
+
+            const txtConfigs = {};
+            txtConfigContainer.querySelectorAll('.txt-config-item').forEach(item => {
+                const originalField = item.querySelector('input[type="text"]').dataset.originalField;
+                const txtName = item.querySelector('input[type="text"]').value.trim();
+                const txtNum = item.querySelector('.txt-num-input').value.trim(); 
+                if (originalField) {
+                    txtConfigs[originalField] = { name: txtName || originalField, num: txtNum };
+                }
+            });
+
+            if (Object.keys(currentProcessedData).length === 0) {
+                downloadLinksArea.innerHTML = `<p class="text-red-400">${translations[currentLanguage].noDataForTxt}</p>`;
+                return;
+            }
+            
+            let filesGenerated = 0;
+            for (const tickerWithColon in currentProcessedData) {
+                const assetData = currentProcessedData[tickerWithColon];
+                const txtContent = generateTxtContentForAsset(tickerWithColon, assetData, txtConfigs, formattedDate, originalFieldOrder);
+
+                if (txtContent) {
+                    filesGenerated++;
+                    const baseFilename = tickerWithColon.replace(':', ''); 
+                    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${baseFilename}.txt`; 
+                    link.textContent = `${translations[currentLanguage].downloadIndividual.split(' ')[0]} ${link.download}`;
+                    link.className = "inline-block bg-blue-500 hover:bg-blue-600 text-white font-semibold py-1 px-3 rounded-md text-xs mr-2 mb-2";
+                    
+                    const p = document.createElement('p');
+                    p.appendChild(link);
+                    downloadLinksArea.appendChild(p);
+                    link.click();
+                }
+            }
+            if(filesGenerated === 0){
+                downloadLinksArea.innerHTML = `<p class="text-yellow-400">${translations[currentLanguage].noFilesGenerated}</p>`;
+            }
+        }
+        
+        downloadTxtFilesButton.addEventListener('click', () => {
+            confirmDeleteModal.classList.remove('hidden');
+        });
+        cancelDownloadButton.addEventListener('click', () => {
+            confirmDeleteModal.classList.add('hidden');
+        });
+        confirmDownloadButton.addEventListener('click', () => {
+            confirmDeleteModal.classList.add('hidden');
+            triggerDownloads();
+        });
+
+
+        loadConfigButton.addEventListener('click', () => {
+            fileUploadConfig.click(); 
+        });
+
+        fileUploadConfig.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const config = JSON.parse(e.target.result);
+                        if (config && config.version === 1) { 
+                            loadedConfiguration = config;
+                            if (config.language) {
+                                setLanguage(config.language);
+                            }
+                            configStatusMessage.textContent = translations[currentLanguage].configLoaded.replace('{0}', file.name);
+                            configStatusMessage.className = "text-xs text-green-400 mt-2 text-center";
+                            fileUploadConfig.value = '';
+                        } else {
+                            configStatusMessage.textContent = "Erro: Arquivo de configuração inválido ou versão incompatível.";
+                            configStatusMessage.className = "text-xs text-red-400 mt-2 text-center";
+                        }
+                    } catch (error) {
+                        configStatusMessage.textContent = `Erro ao ler o arquivo de configuração: ${error.message}`;
+                        configStatusMessage.className = "text-xs text-red-400 mt-2 text-center";
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        saveConfigButton.addEventListener('click', () => {
+            const selectedFieldsStep1 = Array.from(fieldsCheckboxesContainer.querySelectorAll('input[type="checkbox"]:checked'))
+                                          .map(cb => cb.value);
+
+            const ratioSettingsStep2 = {};
+            ratiosInputContainer.querySelectorAll('.ratio-item-label').forEach(item => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                const input = item.querySelector('input[type="number"]');
+                const ticker = checkbox.dataset.ticker;
+                ratioSettingsStep2[ticker] = {
+                    applyRatio: checkbox.checked,
+                    ratioValue: input.value
+                };
+            });
+
+            const txtConfigsStep3 = {};
+            if (txtConfigContainer.querySelector('.txt-config-item')) {
+                txtConfigContainer.querySelectorAll('.txt-config-item').forEach(itemDiv => {
+                    const originalFieldInput = itemDiv.querySelector('input[type="text"]');
+                    if (originalFieldInput && originalFieldInput.dataset.originalField) {
+                        const originalField = originalFieldInput.dataset.originalField;
+                        const txtName = originalFieldInput.value.trim();
+                        const txtNum = itemDiv.querySelector('.txt-num-input').value.trim(); 
+                        txtConfigsStep3[originalField] = {
+                            txtName: txtName || originalField,
+                            txtNum: txtNum
+                        };
+                    }
+                });
+            }
+
+            const currentFullConfiguration = {
+                version: 1,
+                language: currentLanguage,
+                selectedFieldsStep1: selectedFieldsStep1,
+                ratioSettingsStep2: ratioSettingsStep2,
+                txtConfigsStep3: txtConfigsStep3
+            };
+
+            const configString = JSON.stringify(currentFullConfiguration, null, 2); 
+            const blob = new Blob([configString], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const filename = 'gex_configs.json';
+            link.href = url;
+            link.download = filename; 
+            document.body.appendChild(link); 
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            configStatusMessage.textContent = translations[currentLanguage].configSaved.replace('{0}', filename);
+            configStatusMessage.className = "text-xs text-green-400 mt-2 text-center";
+        });
+
+        // ---- Funções para Cálculo Automático de Ratio ----
+        const tickerMapping = {
+            '$SPX:': '^GSPC',
+            '$NDX:': '^NDX',
+            '$SPY:': 'SPY',
+            '$QQQ:': 'QQQ',
+            '$GLD:': 'GLD',
+            '$IWM:': 'IWM',
+            // Tickers de referência
+            'ref_es': 'ES=F',
+            'ref_nq': 'NQ=F',
+            'ref_gc': 'GC=F'
+        };
+
+        async function fetchPrice(apiSymbol, retries = 5, delay = 1500) { 
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const cacheBuster = `_=${new Date().getTime()}`;
+                    const proxyUrl = 'https://api.allorigins.win/get?url=';
+                    const apiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${apiSymbol}?${cacheBuster}`;
+                    
+                    const response = await fetch(proxyUrl + encodeURIComponent(apiUrl));
+                    if (!response.ok) throw new Error(`Network response was not ok for ${apiSymbol}`);
+                    const data = await response.json();
+                    const result = JSON.parse(data.contents);
+                    
+                    if (result.chart.error) {
+                        throw new Error(result.chart.error.description || `Erro para ${apiSymbol}`);
+                    }
+                    
+                    const meta = result.chart.result[0].meta;
+                    return { 
+                        price: meta.regularMarketPrice, 
+                        previousClose: meta.previousClose,
+                        marketState: meta.marketState 
+                    };
+
+                } catch (error) {
+                    console.error(`Falha ao buscar preço para ${apiSymbol} (tentativa ${i + 1}):`, error);
+                    if (i < retries - 1) {
+                        ratioCalcStatus.textContent = translations[currentLanguage].statusFailTicker.replace('{0}', apiSymbol);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        ratioCalcStatus.textContent = `Falha definitiva ao buscar ${apiSymbol}.`;
+                        return null; 
+                    }
+                }
+            }
+            return null;
+        }
+
+
+        async function performRatioCalculation(refSymbolKey, tickersToUpdate) {
+            ratioCalcStatus.textContent = translations[currentLanguage].statusFetching;
+            
+            const refData = await fetchPrice(tickerMapping[refSymbolKey]);
+             if (!refData) {
+                ratioCalcStatus.textContent = translations[currentLanguage].statusFailRef.replace('{0}', refSymbolKey);
+                return false;
+            }
+
+            for (const ticker of tickersToUpdate) {
+                const item = ratiosInputContainer.querySelector(`[data-ticker="${ticker}"]`)?.closest('.ratio-item-label');
+                if (!item) continue;
+                
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                const input = item.querySelector('input[type="number"]');
+                const apiSymbol = tickerMapping[ticker];
+
+                if (apiSymbol) {
+                    ratioCalcStatus.textContent = `Buscando preço para ${apiSymbol}...`;
+                    const data = await fetchPrice(apiSymbol);
+                    if (data) {
+                        const refMarketOpen = refData.marketState === 'REGULAR';
+                        const targetMarketOpen = data.marketState === 'REGULAR';
+                        
+                        let priceType;
+                        if (refMarketOpen && targetMarketOpen) {
+                            priceType = 'current';
+                        } else {
+                            priceType = 'previousClose';
+                        }
+                        
+                        const refPrice = (priceType === 'previousClose') ? refData.previousClose : refData.price;
+                        const price = (priceType === 'previousClose') ? data.previousClose : data.price;
+
+                        if (price && price > 0) {
+                            const calculatedRatio = refPrice / price;
+                            input.value = calculatedRatio.toFixed(8);
+                            checkbox.checked = true;
+                            input.disabled = false;
+                        } else {
+                            ratioCalcStatus.textContent = translations[currentLanguage].statusInvalidPrice.replace('{0}', ticker);
+                            return false;
+                        }
+                    } else {
+                        ratioCalcStatus.textContent = translations[currentLanguage].statusFailTicker.replace('{0}', ticker);
+                        return false;
+                    }
+                }
+            }
+             return true; 
+        }
+
+        calculateAllRatiosButton.addEventListener('click', async () => {
+            const tickersSet = new Set(uniqueTickers);
+            const hasEsTickers = tickersSet.has('$SPX:') || tickersSet.has('$SPY:');
+            const hasNqTickers = tickersSet.has('$NDX:') || tickersSet.has('$QQQ:');
+            const hasGldTicker = tickersSet.has('$GLD:');
+            
+            calculateAllRatiosButton.disabled = true;
+            
+            if (hasEsTickers) {
+                const success = await performRatioCalculation('ref_es', ['$SPX:', '$SPY:']);
+                if (!success) {
+                    calculateAllRatiosButton.disabled = false;
+                    return;
+                }
+            }
+            if (hasNqTickers) {
+                const success = await performRatioCalculation('ref_nq', ['$NDX:', '$QQQ:']);
+                if (!success) {
+                    calculateAllRatiosButton.disabled = false;
+                    return;
+                }
+            }
+            if (hasGldTicker) {
+                const success = await performRatioCalculation('ref_gc', ['$GLD:']);
+                 if (!success) {
+                    calculateAllRatiosButton.disabled = false;
+                    return;
+                }
+            }
+            
+            ratioCalcStatus.textContent = translations[currentLanguage].statusDone;
+            setTimeout(() => {
+                ratioCalcStatus.textContent = '';
+                calculateAllRatiosButton.disabled = false;
+            }, 3000);
+        });
+
+    });
+    </script>
+
+</body>
+</html>
