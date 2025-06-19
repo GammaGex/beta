@@ -51,19 +51,20 @@
             flex: 0 0 300px;
             background-color: var(--bg-secondary);
             border-radius: 8px;
-            padding: 15px;
+            padding: 15px 20px;
             display: flex;
             flex-direction: column;
         }
 
         h3 {
             text-align: left;
-            font-size: 1.1em;
+            font-size: 1em;
             color: var(--text-secondary);
             text-transform: uppercase;
             border-bottom: 1px solid var(--border-color);
             margin-top: 15px;
             margin-bottom: 10px;
+            padding-bottom: 5px;
             font-weight: 500;
         }
 
@@ -87,29 +88,29 @@
         .sidebar label {
             display: block;
             margin-bottom: 8px;
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: var(--text-secondary);
             text-transform: uppercase;
         }
         .sidebar input[type="text"] {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             border-radius: 4px;
             border: 1px solid #555;
             background-color: var(--border-color);
             color: var(--text-primary);
             box-sizing: border-box;
-            font-size: 1em;
+            font-size: 0.95em;
         }
         
         .sidebar .date-buttons {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
         .sidebar .date-buttons button {
             width: 100%;
-            padding: 10px;
+            padding: 8px 10px;
             border: 1px solid var(--border-color);
             border-radius: 4px;
             background-color: #2a2a2a;
@@ -117,7 +118,7 @@
             cursor: pointer;
             text-align: left;
             transition: background-color 0.3s, border-color 0.3s;
-            font-size: 1em;
+            font-size: 0.95em;
         }
         .sidebar .date-buttons button.active, .sidebar .date-buttons button:hover {
             background-color: var(--accent-blue);
@@ -127,8 +128,8 @@
         .info-item {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
-            font-size: 0.92em;
+            padding: 3px 0;
+            font-size: 0.9em;
         }
         .info-item .label { color: var(--text-secondary); }
         .info-item .value { font-weight: bold; }
@@ -376,7 +377,8 @@
 
             const maxChangeListEl = document.getElementById("maxChangeList");
             maxChangeListEl.innerHTML = '';
-            const intervals = {'one':'1 min', 'five':'5 min', 'ten':'10 min'};
+            // CORREÇÃO: Adicionando os intervalos de 15 e 30 minutos
+            const intervals = {'one':'1 min', 'five':'5 min', 'ten':'10 min', 'fifteen': '15 min', 'thirty': '30 min'};
             for(const key in intervals) {
                 const data = maxChange[key];
                 if(data) {
@@ -408,8 +410,22 @@
                 options: {
                     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                     scales: {
-                        x: { position: 'top', ticks: { color: '#FFFFFF', callback: (v) => `${(v/1e9).toFixed(3)}` }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
-                        y: { type: 'linear', ticks: { color: '#FFFFFF', stepSize: 25 }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
+                        x: { 
+                            position: 'top', 
+                            ticks: { 
+                                color: '#FFFFFF', 
+                                callback: (v) => {
+                                    if (typeof v !== 'number') return '';
+                                    return v.toFixed(0);
+                                }
+                            }, 
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' } 
+                        },
+                        y: { 
+                            type: 'linear', 
+                            ticks: { color: '#FFFFFF', stepSize: 25 }, 
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' } 
+                        }
                     },
                     plugins: {
                         legend: { display: false },
