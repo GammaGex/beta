@@ -47,6 +47,7 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
+            position: relative; /* Necessário para posicionar o timestamp */
         }
 
         .sidebar {
@@ -151,6 +152,18 @@
             right: 0;
             bottom: 0; 
         }
+
+        #last-update-display {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background-color: rgba(0,0,0,0.3);
+        }
         
         @media (max-width: 900px) {
             body { height: auto; }
@@ -168,6 +181,7 @@
                 <div class="chart-container" id="chartContainer">
                     <canvas id="gexChart"></canvas>
                 </div>
+                 <div id="last-update-display"></div>
             </div>
         </main>
         <aside class="sidebar">
@@ -198,8 +212,7 @@
                 
                 <div id="sidebar-info" style="display:none;">
                     <h3>Update</h3>
-                    <div class="info-item"><span class="label">Date</span><span class="value" id="timestamp_date">-</span></div>
-                    <div class="info-item"><span class="label">Time</span><span class="value" id="timestamp_time">-</span></div>
+                    <div class="info-item"><span class="label">Data API</span><span class="value" id="timestamp_date">-</span></div>
                     <div class="info-item"><span class="label">Spot</span><span class="value" id="spot_price">-</span></div>
 
                     <h3>Volume</h3>
@@ -299,9 +312,11 @@
         }
         
         function updateSidebar(data) {
-            const date = new Date(data.timestamp * 1000); 
-            document.getElementById('timestamp_date').textContent = date.toLocaleDateString('pt-BR');
-            document.getElementById('timestamp_time').textContent = date.toLocaleTimeString('pt-BR');
+            const apiDate = new Date(data.timestamp * 1000); 
+            document.getElementById('timestamp_date').textContent = apiDate.toLocaleDateString('pt-BR');
+            
+            const now = new Date();
+            document.getElementById('last-update-display').textContent = `Última Atualização: ${now.toLocaleTimeString('pt-BR')}`;
 
             document.getElementById('spot_price').textContent = formatNumber(data.spot, 2);
             document.getElementById('zero_gamma').textContent = formatNumber(data.zero_gamma, 2);
@@ -369,7 +384,7 @@
                 myGexChart.options.scales.x.min = -axisLimit;
                 myGexChart.options.scales.x.max = axisLimit;
                 myGexChart.options.plugins.annotation.annotations = annotationOptions;
-                myGexChart.update('none'); // 'none' para evitar animações na atualização
+                myGexChart.update('none'); 
             } else {
                 const ctx = document.getElementById('gexChart').getContext('2d');
                 myGexChart = new Chart(ctx, {
@@ -378,7 +393,7 @@
                     options: {
                         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                         animation: {
-                            duration: 0 // Desativa a animação inicial
+                            duration: 0 
                         },
                         scales: {
                             x: { 
