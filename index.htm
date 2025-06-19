@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEX Dashboard v26</title>
+    <title>GEX Dashboard v28</title>
     <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -21,6 +21,7 @@
             --accent-blue: #0d8eff;
             --positive-color: #28a745;
             --negative-color: #dc3545;
+            --amber-color: #f0b90b;
         }
 
         body {
@@ -137,6 +138,7 @@
         .info-item .value { font-weight: bold; }
         .positive { color: var(--positive-color); }
         .negative { color: var(--negative-color); }
+        .amber { color: var(--amber-color); }
         
         #status { text-align: center; margin-top: 20px; font-style: italic; color: #888; }
         
@@ -202,7 +204,7 @@
                     <div class="info-item"><span class="label">Spot</span><span class="value" id="spot_price">-</span></div>
 
                     <h3>Volume</h3>
-                    <div class="info-item"><span class="label">Zero Gamma</span><span class="value" id="zero_gamma">-</span></div>
+                    <div class="info-item"><span class="label">Zero Gamma</span><span class="value amber" id="zero_gamma">-</span></div>
                     <div class="info-item"><span class="label">Major Positive</span><span class="value positive" id="mpos_vol">-</span></div>
                     <div class="info-item"><span class="label">Major Negative</span><span class="value negative" id="mneg_vol">-</span></div>
                     <div class="info-item"><span class="label">Net GEX</span><span class="value" id="net_gex_vol">-</span></div>
@@ -214,6 +216,12 @@
 
                     <h3>Max Change GEX</h3>
                     <div id="maxChangeList"></div>
+
+                    <h3>Atualização</h3>
+                    <div class="info-item">
+                        <span class="label">Horário Local</span>
+                        <span class="value" id="local_update_time">-</span>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -300,6 +308,7 @@
         function updateSidebar(data) {
             const date = new Date(data.timestamp * 1000); 
             document.getElementById('timestamp_date').textContent = date.toLocaleDateString('pt-BR');
+            document.getElementById('local_update_time').textContent = new Date().toLocaleTimeString('pt-BR');
 
             document.getElementById('spot_price').textContent = formatNumber(data.spot, 2);
             document.getElementById('zero_gamma').textContent = formatNumber(data.zero_gamma, 2);
@@ -324,16 +333,18 @@
             maxChangeListEl.innerHTML = '';
             const intervals = ['1m', '5m', '10m', '15m', '30m'];
             if(data.max_priors && Array.isArray(data.max_priors)){
-                data.max_priors.slice(1).forEach((changeData, index) => { 
-                    if (changeData) {
+                for (let i = 1; i < data.max_priors.length; i++) { 
+                    const changeData = data.max_priors[i];
+                    const label = intervals[i];
+                    if (changeData && label) {
                         const valueClass = changeData[1] > 0 ? 'positive' : 'negative';
                         maxChangeListEl.innerHTML += `
                             <div class="info-item">
-                                <span class="label">${intervals[index + 1]}</span>
+                                <span class="label">${label}</span>
                                 <span class="value">${formatNumber(changeData[0])} <span class="${valueClass}">${formatBillions(changeData[1])}</span></span>
                             </div>`;
                     }
-                });
+                }
             }
         }
 
@@ -425,14 +436,14 @@
                             },
                             zoom: {
                                 pan: {
-                                    enabled: false, // Desativa o arraste (pan)
+                                    enabled: false,
                                 },
                                 zoom: {
                                     wheel: {
-                                        enabled: false, // Desativa o zoom com a roda do rato
+                                        enabled: false,
                                     },
                                     pinch: {
-                                        enabled: false // Desativa o zoom em ecrãs táteis
+                                        enabled: false
                                     },
                                 }
                             }
