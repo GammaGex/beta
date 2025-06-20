@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEX Dashboard v28</title>
+    <title>GEX Dashboard v31</title>
     <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -201,27 +201,17 @@
                 <div id="sidebar-info" style="display:none;">
                     <h3>Update</h3>
                     <div class="info-item"><span class="label">Data API</span><span class="value" id="timestamp_date">-</span></div>
+                    <div class="info-item"><span class="label">Últ. Atualização</span><span class="value" id="local_update_time">-</span></div>
                     <div class="info-item"><span class="label">Spot</span><span class="value" id="spot_price">-</span></div>
 
                     <h3>Volume</h3>
                     <div class="info-item"><span class="label">Zero Gamma</span><span class="value amber" id="zero_gamma">-</span></div>
                     <div class="info-item"><span class="label">Major Positive</span><span class="value positive" id="mpos_vol">-</span></div>
                     <div class="info-item"><span class="label">Major Negative</span><span class="value negative" id="mneg_vol">-</span></div>
-                    <div class="info-item"><span class="label">Net GEX</span><span class="value" id="net_gex_vol">-</span></div>
                     
                     <h3>Open Interest</h3>
                     <div class="info-item"><span class="label">Major Positive</span><span class="value positive" id="mpos_oi">-</span></div>
                     <div class="info-item"><span class="label">Major Negative</span><span class="value negative" id="mneg_oi">-</span></div>
-                    <div class="info-item"><span class="label">Net GEX</span><span class="value" id="net_gex_oi">-</span></div>
-
-                    <h3>Max Change GEX</h3>
-                    <div id="maxChangeList"></div>
-
-                    <h3>Atualização</h3>
-                    <div class="info-item">
-                        <span class="label">Horário Local</span>
-                        <span class="value" id="local_update_time">-</span>
-                    </div>
                 </div>
             </div>
         </aside>
@@ -315,37 +305,9 @@
             
             document.getElementById('mpos_vol').textContent = formatNumber(data.major_pos_vol, 2);
             document.getElementById('mneg_vol').textContent = formatNumber(data.major_neg_vol, 2);
-            const netGexVolEl = document.getElementById('net_gex_vol');
-            netGexVolEl.textContent = formatBillions(data.sum_gex_vol);
-            if (typeof data.sum_gex_vol === 'number') {
-                netGexVolEl.className = `value ${data.sum_gex_vol > 0 ? 'positive' : 'negative'}`;
-            }
-
+            
             document.getElementById('mpos_oi').textContent = formatNumber(data.major_pos_oi, 2);
             document.getElementById('mneg_oi').textContent = formatNumber(data.major_neg_oi, 2);
-            const netGexOiEl = document.getElementById('net_gex_oi');
-            netGexOiEl.textContent = formatBillions(data.sum_gex_oi);
-            if (typeof data.sum_gex_oi === 'number') {
-                 netGexOiEl.className = `value ${data.sum_gex_oi > 0 ? 'positive' : 'negative'}`;
-            }
-
-            const maxChangeListEl = document.getElementById("maxChangeList");
-            maxChangeListEl.innerHTML = '';
-            const intervals = ['1m', '5m', '10m', '15m', '30m'];
-            if(data.max_priors && Array.isArray(data.max_priors)){
-                for (let i = 1; i < data.max_priors.length; i++) { 
-                    const changeData = data.max_priors[i];
-                    const label = intervals[i];
-                    if (changeData && label) {
-                        const valueClass = changeData[1] > 0 ? 'positive' : 'negative';
-                        maxChangeListEl.innerHTML += `
-                            <div class="info-item">
-                                <span class="label">${label}</span>
-                                <span class="value">${formatNumber(changeData[0])} <span class="${valueClass}">${formatBillions(changeData[1])}</span></span>
-                            </div>`;
-                    }
-                }
-            }
         }
 
         function drawGexProfileChart(fullData) {
@@ -457,7 +419,7 @@
             if (updateInterval) {
                 clearInterval(updateInterval);
             }
-            updateInterval = setInterval(() => runUpdate(true), 10000); 
+            updateInterval = setInterval(() => runUpdate(true), 5000); 
         }
 
         periodButtons.addEventListener('click', (e) => {
