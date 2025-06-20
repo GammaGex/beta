@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEX Dashboard v31</title>
+    <title>GEX Dashboard v32</title>
     <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -131,6 +131,7 @@
         .info-item {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             padding: 3px 0;
             font-size: 0.9em;
         }
@@ -139,6 +140,32 @@
         .positive { color: var(--positive-color); }
         .negative { color: var(--negative-color); }
         .amber { color: var(--amber-color); }
+
+        .live-indicator-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-indicator {
+            width: 8px;
+            height: 8px;
+            background-color: var(--positive-color);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 8px rgba(40, 167, 69, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+            }
+        }
         
         #status { text-align: center; margin-top: 20px; font-style: italic; color: #888; }
         
@@ -200,8 +227,13 @@
                 
                 <div id="sidebar-info" style="display:none;">
                     <h3>Update</h3>
-                    <div class="info-item"><span class="label">Data API</span><span class="value" id="timestamp_date">-</span></div>
-                    <div class="info-item"><span class="label">Últ. Atualização</span><span class="value" id="local_update_time">-</span></div>
+                    <div class="info-item">
+                        <span class="label">Últ. Atualização</span>
+                        <span class="value live-indicator-container">
+                            <span id="local_update_time">-</span>
+                            <span class="live-indicator"></span>
+                        </span>
+                    </div>
                     <div class="info-item"><span class="label">Spot</span><span class="value" id="spot_price">-</span></div>
 
                     <h3>Volume</h3>
@@ -234,11 +266,7 @@
             if (typeof num !== 'number') return '-';
             return num.toLocaleString('pt-BR', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
         }
-        function formatBillions(num) {
-            if (typeof num !== 'number') return '-';
-            const value = (num / 1e9);
-            return `${value.toFixed(4)}Bn`;
-        }
+        
         function setStatus(message, isLoading = false) {
             statusEl.textContent = message;
             statusEl.style.display = 'block';
@@ -296,8 +324,6 @@
         }
         
         function updateSidebar(data) {
-            const date = new Date(data.timestamp * 1000); 
-            document.getElementById('timestamp_date').textContent = date.toLocaleDateString('pt-BR');
             document.getElementById('local_update_time').textContent = new Date().toLocaleTimeString('pt-BR');
 
             document.getElementById('spot_price').textContent = formatNumber(data.spot, 2);
