@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEX Dashboard v32</title>
+    <title>GEX Dashboard v33</title>
     <!-- Chart.js e dependências -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -154,6 +154,10 @@
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
+        .live-indicator.closed {
+            background-color: var(--negative-color);
+            animation: none;
+        }
 
         @keyframes pulse {
             0% {
@@ -228,10 +232,10 @@
                 <div id="sidebar-info" style="display:none;">
                     <h3>Update</h3>
                     <div class="info-item">
-                        <span class="label">Últ. Atualização</span>
+                        <span class="label" id="update_status_label">Últ. Atualização</span>
                         <span class="value live-indicator-container">
                             <span id="local_update_time">-</span>
-                            <span class="live-indicator"></span>
+                            <span id="live_indicator" class="live-indicator"></span>
                         </span>
                     </div>
                     <div class="info-item"><span class="label">Spot</span><span class="value" id="spot_price">-</span></div>
@@ -441,6 +445,45 @@
             }
         }
         
+        function isMarketOpen() {
+            const now = new Date();
+            const day = now.getDay(); // Domingo = 0, Sábado = 6
+            const hour = now.getHours();
+            const minute = now.getMinutes();
+            if (day === 0 || day === 6) return false;
+            const marketOpen = (hour > 10 || (hour === 10 && minute >= 30));
+            const marketClosed = hour >= 17;
+            return marketOpen && !marketClosed;
+        }
+
+        function updateMarketStatusUI(isOpen) {
+            const statusLabel = document.getElementById('update_status_label');
+            const liveIndicator = document.getElementById('live_indicator');
+            if (isOpen) {
+                statusLabel.textContent = 'Últ. Atualização';
+                liveIndicator.classList.remove('closed');
+            } else {
+                statusLabel.textContent = 'Mercado Fechado';
+                liveIndicator.classList.add('closed');
+            }
+        }
+
+        function masterUpdateController() {
+            const marketIsOpenNow = isMarketOpen();
+            updateMarketStatusUI(marketIsOpenNow);
+            
+            if (marketIsOpenNow) {
+                if (!updateInterval) {
+                   startAutoUpdate();
+                }
+            } else {
+                if (updateInterval) {
+                    clearInterval(updateInterval);
+                    updateInterval = null;
+                }
+            }
+        }
+        
         function startAutoUpdate() {
             if (updateInterval) {
                 clearInterval(updateInterval);
@@ -460,8 +503,10 @@
         tickerSelect.addEventListener('change', runUpdate);
         
         window.addEventListener('load', () => {
-            runUpdate(); 
-            startAutoUpdate();
+            runUpdate().then(() => {
+                masterUpdateController();
+                setInterval(masterUpdateController, 60000);
+            }); 
         });
     </script>
 </body>
